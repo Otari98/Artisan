@@ -640,161 +640,57 @@ function Artisan_SetSelection(id)
     end
 
     ArtisanHighlightFrame:Show()
-    -- Crafts
-    if ArtisanFrame.craft then
-        local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = Artisan_GetCraftInfo(id)
-        -- If the type of the selection is header, don't process all the craft details
-        if ( craftType == "header" ) then
-            ArtisanHighlightFrame:Hide()
-            if (table.getn(searchResults) == 0) then
-                if ( isExpanded == 1 ) then
-                    Artisan_CollapseCraftSkillLine(id)
-                else
-                    Artisan_ExpandCraftSkillLine(id)
-                end
-            end
-            return
-        end
 
-        ArtisanFrame.selectedSkill = id
-        --SelectCraft(id)
-
-        if ( id > table.getn(craftingSkills[ArtisanFrame.selectedTabName]) ) then
-            return
-        end
-
-        local color = TypeColor[craftType]
-        if color then
-            ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
-        end
-
-        local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
-        ArtisanSkillName:SetText(craftName)
-        ArtisanSkillIcon:SetNormalTexture(GetCraftIcon(originalID))
-        ArtisanSkillCooldown:SetText("")
-        ArtisanSkillIconCount:SetText("")
-
-        if ( GetCraftDescription(originalID) and ArtisanFrame.selectedTabName == "Beast Training") then
-            ArtisanCraftDescription:Show()
-            ArtisanCraftDescription:SetText(GetCraftDescription(originalID))
-        else
-            ArtisanCraftDescription:Hide()
-        end
-
-        -- Reagents
-        local creatable = 1
-        local numReagents = GetCraftNumReagents(originalID)
-        for i=1, numReagents, 1 do
-            local reagentName, reagentTexture, reagentCount, playerReagentCount = GetCraftReagentInfo(originalID, i)
-            local reagent = getglobal("ArtisanReagent"..i)
-            local name = getglobal("ArtisanReagent"..i.."Name")
-            local count = getglobal("ArtisanReagent"..i.."Count")
-            if ( not reagentName or not reagentTexture ) then
-                reagent:Hide()
+    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = Artisan_GetCraftInfo(id)
+    -- If the type of the selection is header, don't process all the craft details
+    if ( craftType == "header" ) then
+        ArtisanHighlightFrame:Hide()
+        if (table.getn(searchResults) == 0) then
+            if ( isExpanded and isExpanded == 1 ) then
+                Artisan_CollapseCraftSkillLine(id)
             else
-                reagent:Show()
-                SetItemButtonTexture(reagent, reagentTexture)
-                name:SetText(reagentName)
-                -- Grayout items
-                if ( playerReagentCount < reagentCount ) then
-                    SetItemButtonTextureVertexColor(reagent, GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
-                    name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
-                    creatable = nil
-                else
-                    SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
-                    name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-                end
-                if ( playerReagentCount >= 100 ) then
-                    playerReagentCount = "*"
-                end
-                count:SetText(playerReagentCount.." /"..reagentCount)
+                Artisan_ExpandCraftSkillLine(id)
             end
         end
-        if ( numReagents > 0 ) then
-            ArtisanReagentLabel:Show()
-        else
-            ArtisanReagentLabel:Hide()
-        end
-        for i=numReagents + 1, maxCraftReagents, 1 do
-            getglobal("ArtisanReagent"..i):Hide()
-        end
+        return
+    end
 
-        local requiredTotems = BuildColoredListString(GetCraftSpellFocus(originalID))
-        if ( requiredTotems ) then
-            ArtisanRequirementLabel:Show()
-            ArtisanRequirementText:SetText(requiredTotems)
-        elseif ( requiredLevel and requiredLevel > 0 ) then
-            if ( UnitLevel("pet") >= requiredLevel ) then
-                ArtisanRequirementLabel:Show()
-                ArtisanRequirementText:SetText(format(TRAINER_PET_LEVEL, requiredLevel))
-            else
-                ArtisanRequirementLabel:Show()
-                ArtisanRequirementText:SetText(format(TRAINER_PET_LEVEL_RED, requiredLevel))
-            end
-        else
-            ArtisanRequirementLabel:Hide()
-            ArtisanRequirementText:SetText("")
-        end
-    
-        if ( trainingPointCost > 0 ) then
-            local totalPoints, spent = GetPetTrainingPoints()
-            local usablePoints = totalPoints - spent
-            if ( usablePoints >= trainingPointCost ) then
-                ArtisanCraftCost:SetText(COSTS_LABEL.." "..trainingPointCost.." "..TRAINING_POINTS_LABEL)
-            else
-                ArtisanCraftCost:SetText(COSTS_LABEL.." "..RED_FONT_COLOR_CODE..trainingPointCost..FONT_COLOR_CODE_CLOSE.." "..TRAINING_POINTS_LABEL)
-            end
-            ArtisanCraftCost:Show()
-        else
-            ArtisanCraftCost:Hide()
-        end
-    
-        if ( craftType == "used" ) then
-            creatable = nil
-        end
-    
-        if ( creatable ) then
-            ArtisanFrameCreateButton:Enable()
-        else
-            ArtisanFrameCreateButton:Disable()
-        end
-        
-        Artisan_UpdateDetailScrollFrame(numReagents)
-    -- Trade Skills
+    ArtisanFrame.selectedSkill = id
+    Artisan_SelectCraft(id)
+
+    if ( id > Artisan_GetNumCrafts() ) then
+        return
+    end
+
+    local color = TypeColor[craftType]
+    if color then
+        ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
+    end
+
+    ArtisanSkillName:SetText(craftName)
+    ArtisanSkillIcon:SetNormalTexture(Artisan_GetCraftIcon(id))
+    ArtisanSkillCooldown:SetText("")
+    ArtisanSkillIconCount:SetText("")
+    ArtisanCraftCost:Hide()
+    ArtisanCraftDescription:Hide()
+    -- Cooldown
+    if GetTradeSkillCooldown(id) then
+        ArtisanSkillCooldown:SetText(COOLDOWN_REMAINING.." "..SecondsToTime(GetTradeSkillCooldown(id)))
     else
-        local skillName, skillType, numAvailable, isExpanded = Artisan_GetCraftInfo(id)
-        if skillType == "header" then
-            ArtisanHighlightFrame:Hide()
-            if (table.getn(searchResults) == 0) then
-                if isExpanded then
-                    CollapseTradeSkillSubClass(id)
-                else
-                    ExpandTradeSkillSubClass(id)
-                end
-            end
-            return
-        end
-        ArtisanFrame.selectedSkill = id
-        SelectTradeSkill(id)
-        if GetTradeSkillSelectionIndex() > GetNumTradeSkills() then
-            return
-        end
-        local color = TypeColor[skillType]
-        if color then
-            ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
-        end
-
-        ArtisanSkillName:SetText(skillName)
-        ArtisanCraftCost:Hide()
+        ArtisanSkillCooldown:SetText("")
+    end
+    -- Description text
+    if ( Artisan_GetCraftDescription(id) and ArtisanFrame.selectedTabName == "Beast Training") then
+        ArtisanCraftDescription:Show()
+        ArtisanCraftDescription:SetText(Artisan_GetCraftDescription(id))
+        ArtisanReagentLabel:Hide()
+    else
+        ArtisanReagentLabel:Show()
         ArtisanCraftDescription:Hide()
-        
-        if GetTradeSkillCooldown(id) then
-            ArtisanSkillCooldown:SetText(COOLDOWN_REMAINING.." "..SecondsToTime(GetTradeSkillCooldown(id)))
-        else
-            ArtisanSkillCooldown:SetText("")
-        end
-        ArtisanSkillIcon:SetNormalTexture(GetTradeSkillIcon(id))
-        local minMade,maxMade = GetTradeSkillNumMade(id)
+    end
+    if not ArtisanFrame.craft then
+        -- Amount made
+        local minMade, maxMade = GetTradeSkillNumMade(id)
         if maxMade > 1 then
             if minMade == maxMade then
                 ArtisanSkillIconCount:SetText(minMade)
@@ -807,62 +703,84 @@ function Artisan_SetSelection(id)
         else
             ArtisanSkillIconCount:SetText("")
         end
-        -- Reagents
-        local creatable = 1
-        local numReagents = GetTradeSkillNumReagents(id)
-        for i=1, numReagents, 1 do
-            local reagentName, reagentTexture, reagentCount, playerReagentCount = GetTradeSkillReagentInfo(id, i)
-            local reagent = getglobal("ArtisanReagent"..i)
-            local name = getglobal("ArtisanReagent"..i.."Name")
-            local count = getglobal("ArtisanReagent"..i.."Count")
-            if ( not reagentName or not reagentTexture ) then
-                reagent:Hide()
-            else
-                reagent:Show()
-                SetItemButtonTexture(reagent, reagentTexture)
-                name:SetText(reagentName)
-                -- Grayout items
-                if ( playerReagentCount < reagentCount ) then
-                    SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
-                    name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
-                    creatable = nil
-                else
-                    SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
-                    name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
-                end
-                if ( playerReagentCount >= 100 ) then
-                    playerReagentCount = "*"
-                end
-                count:SetText(playerReagentCount.." /"..reagentCount)
-            end
-        end
-        -- Place reagent label
-        local reagentToAnchorTo = numReagents
-        ArtisanReagentLabel:Show()
-        if ( (numReagents > 0) and (mod(numReagents, 2) == 0) ) then
-            reagentToAnchorTo = reagentToAnchorTo - 1
-        end
-        for i=numReagents + 1, maxCraftReagents, 1 do
-            getglobal("ArtisanReagent"..i):Hide()
-        end
-        local spellFocus = BuildColoredListString(GetTradeSkillTools(id))
-        if ( spellFocus ) then
-            ArtisanRequirementLabel:Show()
-            ArtisanRequirementText:SetText(spellFocus)
-        else
-            ArtisanRequirementLabel:Hide()
-            ArtisanRequirementText:SetText("")
-        end
-        if ( creatable ) then
-            ArtisanFrameCreateButton:Enable()
-            ArtisanFrameCreateAllButton:Enable()
-        else
-            ArtisanFrameCreateButton:Disable()
-            ArtisanFrameCreateAllButton:Disable()
-        end
-
-        Artisan_UpdateDetailScrollFrame(numReagents)
     end
+    -- Reagents
+    local creatable = 1
+    local numReagents = Artisan_GetCraftNumReagents(id)
+    for i=1, numReagents, 1 do
+        local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan_GetCraftReagentInfo(id, i)
+        local reagent = getglobal("ArtisanReagent"..i)
+        local name = getglobal("ArtisanReagent"..i.."Name")
+        local count = getglobal("ArtisanReagent"..i.."Count")
+        if ( not reagentName or not reagentTexture ) then
+            reagent:Hide()
+        else
+            reagent:Show()
+            SetItemButtonTexture(reagent, reagentTexture)
+            name:SetText(reagentName)
+            -- Grayout items
+            if ( playerReagentCount < reagentCount ) then
+                SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
+                name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
+                creatable = nil
+            else
+                SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
+                name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+            end
+            if ( playerReagentCount >= 100 ) then
+                playerReagentCount = "*"
+            end
+            count:SetText(playerReagentCount.." /"..reagentCount)
+        end
+    end
+
+    for i=numReagents + 1, maxCraftReagents, 1 do
+        getglobal("ArtisanReagent"..i):Hide()
+    end
+
+    local tools = BuildColoredListString(Artisan_GetCraftTools(id))
+    if ( tools ) then
+        ArtisanRequirementLabel:Show()
+        ArtisanRequirementText:SetText(tools)
+    elseif ( requiredLevel and requiredLevel > 0 ) then
+        if ( UnitLevel("pet") >= requiredLevel ) then
+            ArtisanRequirementLabel:Show()
+            ArtisanRequirementText:SetText(format(TRAINER_PET_LEVEL, requiredLevel))
+        else
+            ArtisanRequirementLabel:Show()
+            ArtisanRequirementText:SetText(format(TRAINER_PET_LEVEL_RED, requiredLevel))
+        end
+    else
+        ArtisanRequirementLabel:Hide()
+        ArtisanRequirementText:SetText("")
+    end
+
+    if ( trainingPointCost and trainingPointCost > 0 ) then
+        local totalPoints, spent = GetPetTrainingPoints()
+        local usablePoints = totalPoints - spent
+        if ( usablePoints >= trainingPointCost ) then
+            ArtisanCraftCost:SetText(COSTS_LABEL.." "..trainingPointCost.." "..TRAINING_POINTS_LABEL)
+        else
+            ArtisanCraftCost:SetText(COSTS_LABEL.." "..RED_FONT_COLOR_CODE..trainingPointCost..FONT_COLOR_CODE_CLOSE.." "..TRAINING_POINTS_LABEL)
+        end
+        ArtisanCraftCost:Show()
+    else
+        ArtisanCraftCost:Hide()
+    end
+
+    if ( craftType == "used" ) then
+        creatable = nil
+    end
+
+    if ( creatable ) then
+        ArtisanFrameCreateButton:Enable()
+        ArtisanFrameCreateAllButton:Enable()
+    else
+        ArtisanFrameCreateButton:Disable()
+        ArtisanFrameCreateAllButton:Disable()
+    end
+
+    Artisan_UpdateDetailScrollFrame(numReagents)
 end
 
 function Artisan_UpdateTrainingPoints()
@@ -1174,4 +1092,49 @@ function Artisan_GetNumCrafts()
     end
 
     return getn(craftingSkills[ArtisanFrame.selectedTabName])
+end
+
+function Artisan_SelectCraft(i)
+    if not ArtisanFrame.craft then
+        return SelectTradeSkill(i)
+    end
+    SelectCraft(i)
+end
+
+function Artisan_GetCraftIcon(id)
+    if not ArtisanFrame.craft then
+        return GetTradeSkillIcon(id)
+    end
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    return GetCraftIcon(originalID)
+end
+
+function Artisan_GetCraftDescription(id)
+    if not ArtisanFrame.craft then
+        return nil
+    end
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    return GetCraftDescription(originalID)
+end
+
+function Artisan_GetCraftNumReagents(id)
+    if not ArtisanFrame.craft then
+        return GetTradeSkillNumReagents(id)
+    end
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    return GetCraftNumReagents(originalID)
+end
+
+function Artisan_GetCraftReagentInfo(id, i)
+    if not ArtisanFrame.craft then
+        return GetTradeSkillReagentInfo(id, i)
+    end
+    return GetCraftReagentInfo(id, i)
+end
+
+function Artisan_GetCraftTools(id)
+    if not ArtisanFrame.craft then
+        return GetTradeSkillTools(id)
+    end
+    return GetCraftSpellFocus(id)
 end
