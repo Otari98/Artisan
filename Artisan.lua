@@ -185,7 +185,7 @@ function Artisan_Init()
         end
     end
 
-    ArtisanFrame.selectedSkill = 2
+    ArtisanFrame.selectedSkill = 0
     ArtisanFrame.originalScroll = ArtisanDetailScrollFrame:GetScript("OnMouseWheel")
     FauxScrollFrame_SetOffset(TradeSkillListScrollFrame, 0)
     ArtisanConfig = ArtisanConfig or {}
@@ -198,61 +198,57 @@ function ArtisanFrame_OnEvent()
         ArtisanRankFrame:SetStatusBarColor(0.0, 0.0, 1.0, 0.5)
         ArtisanRankFrameBackground:SetVertexColor(0.0, 0.0, 0.75, 0.5)
         craftingSkills = craftingSkills or {}
-    end
-    if event == "SPELLS_CHANGED" then
+    elseif event == "SPELLS_CHANGED" then
         Artisan_SetupSideTabs()
-    end
-    if event == "PLAYER_ENTERING_WORLD" then
+    elseif event == "PLAYER_ENTERING_WORLD" then
         SetPortraitTexture(ArtisanFramePortrait, "player")
         Artisan_Init()
-    end
-    if event == "UNIT_PORTRAIT_UPDATE" and arg1 == "player" then
+    elseif event == "UNIT_PORTRAIT_UPDATE" and arg1 == "player" then
         SetPortraitTexture(ArtisanFramePortrait, "player")
-    end
-    if event == "UNIT_PET_TRAINING_POINTS" then
+    elseif event == "UNIT_PET_TRAINING_POINTS" then
 		Artisan_UpdateTrainingPoints()
-	end
-    if event == "TRADE_SKILL_UPDATE" then
+    elseif event == "TRADE_SKILL_UPDATE" then
         Artisan_SetupSideTabs()
-		if GetTradeSkillSelectionIndex() > 1 and GetTradeSkillSelectionIndex() <= GetNumTradeSkills() then
-			Artisan_SetSelection(GetTradeSkillSelectionIndex())
+        local selection = ArtisanFrame.selectedSkill
+        local numCrafts = Artisan_GetNumCrafts()
+		if selection > 1 and selection <= numCrafts then
+			Artisan_SetSelection(selection)
 		else
-			if GetNumTradeSkills() > 0 then
-				Artisan_SetSelection(GetFirstTradeSkill())
+			if numCrafts > 0 then
+				Artisan_SetSelection(Artisan_GetFirstCraft())
 				FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
                 ArtisanListScrollFrame:SetVerticalScroll(0)
 			end
 			ArtisanListScrollFrameScrollBar:SetValue(0)
 		end
 		ArtisanFrame_Update()
-    end
-    if event == "CRAFT_UPDATE" then
+    elseif event == "CRAFT_UPDATE" then
         Artisan_SetupSideTabs()
         Artisan_UpdateSkillList()
-        local craftName = ArtisanFrame.selectedTabName
         local selection = ArtisanFrame.selectedSkill
-        local numCrafts = table.getn(craftingSkills[craftName])
-		if selection > 0 and selection <= numCrafts then
+        local numCrafts = Artisan_GetNumCrafts()
+		if selection > 1 and selection <= numCrafts then
 			Artisan_SetSelection(selection)
 		else
 			if numCrafts > 0 then
-				Artisan_SetSelection(Artisan_GetFirstCraft(craftName))
-				FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-                ArtisanListScrollFrame:SetVerticalScroll(0)
+                if ArtisanFrame.selectedTabName == "Beast Training" then
+                    Artisan_SetSelection(1)
+                else
+                    Artisan_SetSelection(Artisan_GetFirstCraft())
+                    FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+                    ArtisanListScrollFrame:SetVerticalScroll(0)
+                    ArtisanListScrollFrameScrollBar:SetValue(0)
+                end
 			end
-            ArtisanListScrollFrameScrollBar:SetValue(0)
 		end
 		ArtisanFrame_Update()
-    end
-    if event == "TRADE_SKILL_SHOW" then
+    elseif event == "TRADE_SKILL_SHOW" then
         CloseCraft()
         ArtisanFrame_Show()
-    end
-    if event == "CRAFT_SHOW" then
+    elseif event == "CRAFT_SHOW" then
         CloseTradeSkill()
         ArtisanFrame_Show()
-    end
-    if event == "TRADE_SKILL_CLOSE" or event == "CRAFT_CLOSE" then
+    elseif event == "TRADE_SKILL_CLOSE" or event == "CRAFT_CLOSE" then
         if GetCraftName() ~= "Beast Training" and GetCraftDisplaySkillLine() ~= "Enchanting" and GetTradeSkillLine() == "UNKNOWN" then
             ArtisanFrame.selectedTabName = nil
         end
@@ -261,11 +257,9 @@ function ArtisanFrame_OnEvent()
                 HideUIPanel(ArtisanFrame)
             end
         end
-    end
-    if event == "UPDATE_TRADESKILL_RECAST" then
+    elseif event == "UPDATE_TRADESKILL_RECAST" then
 		ArtisanFrameInputBox:SetNumber(GetTradeskillRepeatCount())
-    end
-    if event == "BAG_UPDATE" then
+    elseif event == "BAG_UPDATE" then
         if ArtisanFrame:IsVisible() then
 		    ArtisanFrame_Search()
         end
@@ -330,6 +324,7 @@ function Artisan_SetupSideTabs()
             i = i + 1
         end
     end
+    -- get selected tab
     for s = 1, numSpells do
         local spellName = GetSpellName(s, "SPELL")
         if listContains(professions["primary"], spellName) or
@@ -847,9 +842,9 @@ function ArtisanSideTab_OnCLick()
             ArtisanFrame.craft = false
         end
         ArtisanFrame.selectedTabName = this.name
-        ArtisanFrame.selectedSkill = Artisan_GetFirstCraft(this.name)
+        ArtisanFrame.selectedSkill = Artisan_GetFirstCraft()
         CastSpellByName(this.name)
-        Artisan_SetSelection(Artisan_GetFirstCraft(this.name))
+        Artisan_SetSelection(Artisan_GetFirstCraft())
     end
 
     for i = 1, maxTabs do
@@ -988,7 +983,7 @@ function Artisan_CollapseCraftSkillLine(id)
         local skillName = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
         local offset = getn(craftingSkills[craft][id].childs) or 0
         Artisan_UpdateSkillList()
-        local first = Artisan_GetFirstCraft(craft)
+        local first = Artisan_GetFirstCraft()
         if first == 0 then
             skill = 0
         elseif id < ArtisanFrame.selectedSkill then
@@ -1026,7 +1021,7 @@ function Artisan_ExpandCraftSkillLine(id)
             end
         end
         Artisan_UpdateSkillList()
-        Artisan_SetSelection(Artisan_GetFirstCraft(craft))
+        Artisan_SetSelection(Artisan_GetFirstCraft())
     else
         --expand 1
         if listContains(collapsedHeaders[craft], headerName) then
@@ -1037,7 +1032,7 @@ function Artisan_ExpandCraftSkillLine(id)
             if ArtisanFrame.selectedSkill ~= 0 then
                 Artisan_SetSelection(ArtisanFrame.selectedSkill)
             else
-                Artisan_SetSelection(Artisan_GetFirstCraft(craft))
+                Artisan_SetSelection(Artisan_GetFirstCraft())
             end
         else
             Artisan_SetSelection(ArtisanFrame.selectedSkill + offset)
@@ -1064,11 +1059,11 @@ function Artisan_GetReagentItemLink(index, id)
     end
 end
 
-function Artisan_GetFirstCraft(craft)
+function Artisan_GetFirstCraft()
     if not ArtisanFrame.craft then
         return GetFirstTradeSkill()
     end
-
+    local craft = ArtisanFrame.selectedTabName
     if not craft then
         return
     end
@@ -1094,11 +1089,12 @@ function Artisan_GetNumCrafts()
     return getn(craftingSkills[ArtisanFrame.selectedTabName])
 end
 
-function Artisan_SelectCraft(i)
+function Artisan_SelectCraft(id)
     if not ArtisanFrame.craft then
-        return SelectTradeSkill(i)
+        return SelectTradeSkill(id)
     end
-    SelectCraft(i)
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    SelectCraft(originalID)
 end
 
 function Artisan_GetCraftIcon(id)
@@ -1129,12 +1125,14 @@ function Artisan_GetCraftReagentInfo(id, i)
     if not ArtisanFrame.craft then
         return GetTradeSkillReagentInfo(id, i)
     end
-    return GetCraftReagentInfo(id, i)
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    return GetCraftReagentInfo(originalID, i)
 end
 
 function Artisan_GetCraftTools(id)
     if not ArtisanFrame.craft then
         return GetTradeSkillTools(id)
     end
-    return GetCraftSpellFocus(id)
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    return GetCraftSpellFocus(originalID)
 end
