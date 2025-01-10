@@ -1,0 +1,1144 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+    <Script file="Artisan.lua" />
+    <Button name="ArtisanSkillButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+		<Layers>
+			<Layer level="BACKGROUND">
+				<FontString name="$parentCost" inherits="GameFontNormal">
+					<Anchors>
+						<Anchor point="RIGHT">
+							<Offset>
+								<AbsDimension x="-15" y="0"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnClick>
+				ArtisanSkillButton_OnClick(arg1)
+			</OnClick>
+		</Scripts>
+	</Button>
+    <Button name="ArtisanItemTemplate" inherits="QuestItemTemplate" virtual="true">
+		<Scripts>
+			<OnEnter>
+				GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT");
+				if ArtisanFrame.craft then
+					local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+					GameTooltip:SetCraftItem(originalID, this:GetID());
+				else
+					GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill, this:GetID());
+				end
+				CursorUpdate();
+			</OnEnter>
+			<OnLeave>
+				GameTooltip:Hide();
+				ResetCursor();
+			</OnLeave>
+			<OnUpdate>
+				CursorOnUpdate();
+			</OnUpdate>
+			<OnClick>
+				Artisan_ItemOnClick(Artisan_GetReagentItemLink(ArtisanFrame.selectedSkill, this:GetID()))
+			</OnClick>
+		</Scripts>
+	</Button>
+	<CheckButton name="ArtisanSideTabTemplate" virtual="true" hidden="true">
+		<Size x="32" y="32"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture file="Interface\SpellBook\SpellBook-SkillLineTab">
+					<Size x="64" y="64"/>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset x="-3" y="11"/>
+						</Anchor>
+					</Anchors>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnClick>
+				ArtisanSideTab_OnCLick()
+			</OnClick>
+			<OnEnter>
+				GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+				GameTooltip:SetText(this.name)
+			</OnEnter>
+			<OnLeave>
+				GameTooltip:Hide()
+			</OnLeave>
+		</Scripts>
+		<NormalTexture/>
+		<HighlightTexture file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD"/>
+		<CheckedTexture file="Interface\Buttons\CheckButtonHilight" alphaMode="ADD"/>
+	</CheckButton>
+    <Frame name="ArtisanFrame" toplevel="true" movable="true" parent="UIParent" enableMouse="true" hidden="true">
+        <Size>
+			<AbsDimension x="384" y="512"/>
+		</Size>
+		<Anchors>
+			<Anchor point="TOPLEFT">
+				<Offset>
+					<AbsDimension x="0" y="-104"/>
+				</Offset>
+			</Anchor>
+		</Anchors>
+		<HitRectInsets>
+			<AbsInset left="0" right="34" top="0" bottom="75"/>
+		</HitRectInsets>
+		<Layers>
+			<Layer level="BACKGROUND">
+                <Texture name="ArtisanFramePortrait">
+                    <Size>
+                        <AbsDimension x="60" y="60"/>
+                    </Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT">
+                            <Offset>
+                                <AbsDimension x="7" y="-6"/>
+                            </Offset>
+                        </Anchor>
+                    </Anchors>
+                </Texture>
+            </Layer>
+			<Layer level="BORDER">
+				<FontString name="ArtisanFrameTitleText" inherits="GameFontNormal">
+					<Anchors>
+						<Anchor point="TOP" relativeTo="$parent" relativePoint="TOP">
+							<Offset>
+								<AbsDimension x="0" y="-17"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopLeft">
+					<Size>
+						<AbsDimension x="256" y="256"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+					</Anchors>
+				</Texture>		
+				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopRight">
+					<Size>
+						<AbsDimension x="128" y="256"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture name="ArtisanFrameBottomLeftTex" file="Interface\TradeSkillFrame\UI-TradeSkill-BotLeft">
+					<Size>
+						<AbsDimension x="256" y="256"/>
+					</Size>
+					<Anchors>
+						<Anchor point="BOTTOMLEFT"/>
+					</Anchors>
+				</Texture>
+				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-BotRight">
+					<Size>
+						<AbsDimension x="128" y="256"/>
+					</Size>
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+			<Layer level="ARTWORK">
+				<Texture name="ArtisanFrameBorderLeft" file="Interface\TradeSkillFrame\UI-TradeSkill-SkillBorder">
+					<Size>
+						<AbsDimension x="256" y="8"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="63" y="-50"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<TexCoords left="0" right="1.0" top="0" bottom="0.25"/>
+				</Texture>
+				<Texture file="Interface\TradeSkillFrame\UI-TradeSkill-SkillBorder">
+					<Size>
+						<AbsDimension x="28" y="8"/>
+					</Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="ArtisanFrameBorderLeft" relativePoint="RIGHT"/>
+					</Anchors>
+					<TexCoords left="0" right="0.109375" top="0.25" bottom="0.5"/>
+				</Texture>
+				<Texture name="ArtisanFrameHorizontalBarLeft" file="Interface\ClassTrainerFrame\UI-ClassTrainer-HorizontalBar">
+					<Size>
+						<AbsDimension x="256" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="15" y="-285"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<TexCoords left="0" right="1.0" top="0" bottom="0.25"/>
+				</Texture>
+				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-HorizontalBar">
+					<Size>
+						<AbsDimension x="75" y="16"/>
+					</Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="ArtisanFrameHorizontalBarLeft" relativePoint="RIGHT">
+							<Offset>
+								<AbsDimension x="0" y="0"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<TexCoords left="0" right="0.29296875" top="0.25" bottom="0.5"/>
+				</Texture>
+				<FontString name="ArtisanFramePointsText" inherits="GameFontHighlightSmall" hidden="true">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT" relativeTo="ArtisanFrame" relativePoint="BOTTOMLEFT">
+							<Offset>
+								<AbsDimension x="170" y="86"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+				<FontString name="ArtisanFramePointsLabel" inherits="GameFontNormalSmall" text="TRAINING_POINTS" hidden="true">
+					<Anchors>
+						<Anchor point="RIGHT" relativeTo="ArtisanFramePointsText" relativePoint="LEFT">
+							<Offset>
+								<AbsDimension x="-5" y="0"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+        <Frames>
+            <StatusBar name="ArtisanRankFrame" drawLayer="BACKGROUND" minValue="0" maxValue="1" defaultValue="1">
+				<Size>
+					<AbsDimension x="250" y="16"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="71" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer level="ARTWORK">
+						<FontString name="$parentSkillName" inherits="GameFontNormalSmall" text="Trade Skill">
+							<Anchors>
+								<Anchor point="LEFT">
+									<Offset>
+										<AbsDimension x="6" y="1"/>
+									</Offset>
+								</Anchor>
+							</Anchors>
+						</FontString>
+						<FontString name="$parentSkillRank" inherits="GameFontHighlightSmall" justifyH="LEFT" text="300/300">
+							<Size>
+								<AbsDimension x="128" y="0"/>
+							</Size>
+							<Anchors>
+								<Anchor point="LEFT" relativeTo="$parentSkillName" relativePoint="RIGHT">
+									<Offset>
+										<AbsDimension x="13" y="0"/>
+									</Offset>
+								</Anchor>
+							</Anchors>
+						</FontString>
+					</Layer>
+					<Layer level="BACKGROUND">
+						<Texture name="$parentBackground">
+							<Color r="0" g="0" b="0.75" a="0.5" />
+						</Texture>
+					</Layer>
+				</Layers>
+				<Frames>
+					<Button name="$parentBorder">
+						<Size>
+							<AbsDimension x="261" y="35"/>
+						</Size>
+						<Anchors>
+							<Anchor point="LEFT">
+								<Offset>
+									<AbsDimension x="-5" y="0"/>
+								</Offset>
+							</Anchor>
+						</Anchors>
+						<NormalTexture name="$parentNormal" file="Interface\PaperDollInfoFrame\UI-Character-Skills-BarBorder" />
+						<Scripts>
+							<OnClick>
+								ArtisanFrameSearchBox:ClearFocus()
+								--CloseDropDownMenus()
+							</OnClick>
+						</Scripts>
+					</Button>			
+				</Frames>
+				<Scripts>
+					<OnLoad>
+						this:RegisterEvent("SKILL_LINES_CHANGED")
+					</OnLoad>
+					<OnEvent>
+						if ( event == "SKILL_LINES_CHANGED" ) then
+							Artisan_SetupSideTabs()
+							ArtisanFrame_Update()
+						end
+					</OnEvent>
+				</Scripts>
+				<BarTexture name="$parentBar" file="Interface\PaperDollInfoFrame\UI-Character-Skills-Bar" />
+				<BarColor r="0.0" g="0.0" b="1.0" a="0.5"/>
+			</StatusBar>
+			<CheckButton name="ArtisanFrameSideTab1" inherits="ArtisanSideTabTemplate" id="1">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativePoint="TOPRIGHT">
+						<Offset>
+							<AbsDimension x="-32" y="-65"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab2" inherits="ArtisanSideTabTemplate" id="2">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab1" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab3" inherits="ArtisanSideTabTemplate" id="3">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab2" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab4" inherits="ArtisanSideTabTemplate" id="4">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab3" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab5" inherits="ArtisanSideTabTemplate" id="5">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab4" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab6" inherits="ArtisanSideTabTemplate" id="6">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab5" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<CheckButton name="ArtisanFrameSideTab7" inherits="ArtisanSideTabTemplate" id="7">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSideTab6" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="-17"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</CheckButton>
+			<Frame name="ArtisanExpandButtonFrame">
+				<Size>
+					<AbsDimension x="54" y="32"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="15" y="-71"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture name="ArtisanExpandTabLeft" file="Interface\ClassTrainerFrame\UI-ClassTrainer-ExpandTab-Left">
+							<Size>
+								<AbsDimension x="8" y="32"/>
+							</Size>
+							<Anchors>
+								<Anchor point="TOPLEFT"/>
+							</Anchors>
+						</Texture>
+						<Texture name="ArtisanExpandTabMiddle" file="Interface\QuestFrame\UI-QuestLogSortTab-Middle">
+							<Size>
+								<AbsDimension x="38" y="32"/>
+							</Size>
+							<Anchors>
+								<Anchor point="LEFT" relativeTo="ArtisanExpandTabLeft" relativePoint="RIGHT">
+									<Offset>
+										<AbsDimension x="0" y="6"/>
+									</Offset>
+								</Anchor>
+							</Anchors>
+						</Texture>
+						<Texture name="ArtisanExpandTabRight" file="Interface\QuestFrame\UI-QuestLogSortTab-Right">
+							<Size>
+								<AbsDimension x="8" y="32"/>
+							</Size>
+							<Anchors>
+								<Anchor point="LEFT" relativeTo="ArtisanExpandTabMiddle" relativePoint="RIGHT"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Frames>
+					<Button name="ArtisanCollapseAllButton" hidden="false" inherits="ClassTrainerSkillButtonTemplate">
+						<Size>
+							<AbsDimension x="40" y="22"/>
+						</Size>
+						<Anchors>
+							<Anchor point="LEFT" relativeTo="ArtisanExpandTabLeft" relativePoint="RIGHT">
+								<Offset>
+									<AbsDimension x="0" y="3"/>
+								</Offset>
+							</Anchor>
+						</Anchors>
+						<Scripts>
+							<OnLoad>
+								getglobal(this:GetName()):SetText(ALL);
+							</OnLoad>
+							<OnClick>
+								ArtisanCollapseAllButton_OnClick();
+							</OnClick>
+						</Scripts>
+					</Button>
+				</Frames>
+			</Frame>
+			<EditBox name="ArtisanFrameSearchBox" inherits="InputBoxTemplate" letters="100">
+				<Size>
+					<AbsDimension x="270" y="32" />
+				</Size>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanExpandButtonFrame" relativePoint="RIGHT">
+						<Offset>
+							<AbsDimension x="142" y="43"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+                <Frames>
+					<Frame name="ArtisanFrameSearchBoxIcon">
+						<Size x="14" y="14" />
+						<Anchors>
+							<Anchor point="LEFT" relativeTo="$parent">
+								<Offset x="1" y="-2" />
+							</Anchor>
+						</Anchors>
+						<Backdrop bgFile="Interface\Common\UI-SearchBox-Icon">
+							<Color r="1.0" g="1.0" b="1.0" a="0.6" />
+						</Backdrop>
+					</Frame>
+                    <Button name="$parentClearButton">
+                        <Size x="14" y="14" />
+                        <Anchors>
+                            <Anchor point="RIGHT" relativeTo="$parent">
+                                <Offset x="-3" y="0" />
+                            </Anchor>
+                        </Anchors>
+                        <Backdrop bgFile="Interface\Common\UI-SearchBox-Clear">
+                            <Color r="1.0" g="1.0" b="1.0" a="0.6" />
+                        </Backdrop>
+                        <Scripts>
+                            <OnClick>
+                                if not ArtisanFrameSearchBox:GetText() then
+                                    return
+                                end
+                                local box = this:GetParent();
+                                box:SetText("");
+                                box:SetFocus();
+                                box:ClearFocus();
+								ArtisanFrameSearchBoxIcon:Show()
+								ArtisanFrame_Search()
+                            </OnClick>
+                            <OnEnter>
+                                GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
+                                GameTooltip:SetText("Clear")
+                                GameTooltip:Show()
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 1.0);
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 0.6);
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+                </Frames>
+				<Scripts>
+					<OnLoad>
+						this:SetAutoFocus(false);
+						this:SetTextInsets(0, 8, 0, 0);
+					</OnLoad>
+					<OnEnterPressed>
+						ArtisanFrame_Search()
+						this:ClearFocus()
+						if this:GetText() == "" then
+							ArtisanFrameSearchBoxIcon:Show()
+						else
+							ArtisanFrameSearchBoxIcon:Hide()
+						end
+					</OnEnterPressed>
+					<OnTextChanged>
+						if this:GetText() == "" then
+							ArtisanFrameSearchBoxIcon:Show()
+							ArtisanCollapseAllButton:Enable()
+						else
+							ArtisanFrameSearchBoxIcon:Hide()
+							ArtisanCollapseAllButton:Disable()
+						end
+						ArtisanFrame_Search()
+					</OnTextChanged>
+					<OnEscapePressed>
+						this:ClearFocus()
+						ArtisanFrame_Search()
+					</OnEscapePressed>
+				</Scripts>
+				<FontString name="$parentSearchString" inherits="GameFontNormal"></FontString>
+			</EditBox>
+			<!--Frame name="ArtisanInvSlotDropDown" inherits="UIDropDownMenuTemplate" id="2">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
+						<Offset>
+							<AbsDimension x="56" y="-64" />
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						ArtisanInvSlotDropDown_OnLoad()
+					</OnLoad>
+					<OnShow>
+						ArtisanInvSlotDropDown_OnShow()
+					</OnShow>
+				</Scripts>
+			</Frame>
+			<Frame name="ArtisanSubClassDropDown" inherits="UIDropDownMenuTemplate" id="1">
+				<Anchors>
+					<Anchor point="RIGHT" relativeTo="ArtisanInvSlotDropDown" relativePoint="LEFT">
+						<Offset>
+							<AbsDimension x="172" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						ArtisanSubClassDropDown_OnLoad()
+					</OnLoad>
+					<OnShow>
+						ArtisanSubClassDropDown_OnShow()
+					</OnShow>
+				</Scripts>
+			</Frame-->
+            <Frame name="ArtisanHighlightFrame" hidden="true">
+				<Size>
+					<AbsDimension x="293" y="16"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT"/>
+				</Anchors>
+				<Layers>
+					<Layer level="ARTWORK">
+						<Texture name="ArtisanHighlightTexture" file="Interface\Buttons\UI-Listbox-Highlight2"/>
+					</Layer>
+				</Layers>
+			</Frame>
+			<Button name="ArtisanFrameSkill1" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrame">
+						<Offset>
+							<AbsDimension x="22" y="-96"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill2" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill1" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill3" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill2" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill4" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill3" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill5" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill4" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill6" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill5" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill7" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill6" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill8" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill7" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+            <Button name="ArtisanFrameSkill9" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill8" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill10" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill9" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+			<Button name="ArtisanFrameSkill11" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill10" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+            <Button name="ArtisanFrameSkill12" inherits="ArtisanSkillButtonTemplate">
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="ArtisanFrameSkill11" relativePoint="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="0" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
+            <ScrollFrame name="ArtisanListScrollFrame" inherits="ClassTrainerListScrollFrameTemplate">
+				<Size>
+					<AbsDimension x="296" y="193"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPRIGHT" relativeTo="ArtisanFrame" relativePoint="TOPRIGHT">
+						<Offset>
+							<AbsDimension x="-67" y="-96"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnVerticalScroll>
+						FauxScrollFrame_OnVerticalScroll(TRADE_SKILL_HEIGHT, ArtisanFrame_Update);
+					</OnVerticalScroll>
+				</Scripts>
+			</ScrollFrame>
+			<ScrollFrame name="ArtisanDetailScrollFrame" inherits="ClassTrainerDetailScrollFrameTemplate">
+				<Size>
+					<AbsDimension x="297" y="112"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-298"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<ScrollChild>
+					<Frame name="ArtisanDetailScrollChildFrame">
+						<Size>
+							<AbsDimension x="297" y="150"/>
+						</Size>
+						<Layers>
+							<Layer level="BACKGROUND">
+								<FontString name="ArtisanSkillName" inherits="GameFontNormal" text="Skill Name" justifyH="LEFT">
+									<Size>
+										<AbsDimension x="244" y="0"/>
+									</Size>
+									<Anchors>
+										<Anchor point="TOPLEFT">
+											<Offset>
+												<AbsDimension x="50" y="-5"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<FontString name="ArtisanRequirementLabel" inherits="GameFontHighlightSmall" text="REQUIRES_LABEL">
+									<Anchors>
+										<Anchor point="TOPLEFT" relativeTo="ArtisanSkillName" relativePoint="BOTTOMLEFT">
+											<Offset>
+												<AbsDimension x="0" y="0"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<FontString name="ArtisanRequirementText" inherits="GameFontHighlightSmall" justifyV="TOP" justifyH="LEFT">
+									<Size>
+										<AbsDimension x="180" y="0"/>
+									</Size>
+									<Anchors>
+										<Anchor point="TOPLEFT" relativeTo="ArtisanRequirementLabel" relativePoint="TOPRIGHT" >
+											<Offset>
+												<AbsDimension x="4" y="0"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<FontString name="ArtisanSkillCooldown" inherits="GameFontRedSmall">
+									<Anchors>
+										<Anchor point="TOPLEFT" relativeTo="ArtisanRequirementLabel" relativePoint="BOTTOMLEFT">
+											<Offset>
+												<AbsDimension x="0" y="0"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<FontString name="ArtisanCraftCost" inherits="GameFontHighlightSmall">
+									<Anchors>
+										<Anchor point="TOPLEFT" relativeTo="ArtisanRequirementLabel" relativePoint="BOTTOMLEFT">
+											<Offset>
+												<AbsDimension x="0" y="0"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<Texture name="ArtisanDetailHeaderLeft" file="Interface\ClassTrainerFrame\UI-ClassTrainer-DetailHeaderLeft">
+									<Size>
+										<AbsDimension x="256" y="64"/>
+									</Size>
+									<Anchors>
+										<Anchor point="TOPLEFT">
+											<Offset>
+												<AbsDimension x="0" y="3"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</Texture>
+								<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-DetailHeaderRight">
+									<Size>
+										<AbsDimension x="64" y="64"/>
+									</Size>
+									<Anchors>
+										<Anchor point="TOPLEFT" relativeTo="ArtisanDetailHeaderLeft" relativePoint="TOPRIGHT">
+											<Offset>
+												<AbsDimension x="0" y="0"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</Texture>
+								<FontString name="ArtisanCraftDescription" inherits="GameFontHighlightSmall" justifyH="LEFT">
+									<Size>
+										<AbsDimension x="290" y="0"/>
+									</Size>
+									<Anchors>
+										<Anchor point="TOPLEFT">
+											<Offset>
+												<AbsDimension x="5" y="-50"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+								<FontString name="ArtisanReagentLabel" inherits="GameFontNormalSmall" text="SPELL_REAGENTS">
+									<Anchors>
+										<Anchor point="TOPLEFT">
+											<Offset>
+												<AbsDimension x="8" y="-47"/>
+											</Offset>
+										</Anchor>
+									</Anchors>
+								</FontString>
+							</Layer>
+						</Layers>
+						<Frames>
+							<Button name="ArtisanSkillIcon">
+								<Size>
+									<AbsDimension x="37" y="37"/>
+								</Size>
+								<Anchors>
+									<Anchor point="TOPLEFT">
+										<Offset>
+											<AbsDimension x="8" y="-3"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+								<Layers>
+									<Layer level="ARTWORK">
+										<FontString name="ArtisanSkillIconCount" inherits="NumberFontNormal" justifyH="RIGHT" hidden="false">
+											<Anchors>
+												<Anchor point="BOTTOMRIGHT">
+													<Offset>
+														<AbsDimension x="-5" y="2"/>
+													</Offset>
+												</Anchor>
+											</Anchors>
+										</FontString>
+									</Layer>
+								</Layers>
+								<Scripts>
+									<OnLoad>
+										this.hasItem = 1
+										this:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+									</OnLoad>
+									<OnClick>
+										Artisan_ItemOnClick(Artisan_GetItemLink(ArtisanFrame.selectedSkill));
+									</OnClick>
+									<OnEnter>
+										if ( ArtisanFrame.selectedSkill ~= 0 ) then
+											GameTooltip:SetOwner(this, "ANCHOR_RIGHT");
+											if ArtisanFrame.craft then
+												local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+												GameTooltip:SetCraftSpell(originalID);
+											else
+												GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill);
+											end
+											CursorUpdate();
+										end
+									</OnEnter>
+									<OnLeave>
+										GameTooltip:Hide();
+										ResetCursor();
+									</OnLeave>
+									<OnUpdate>
+										CursorOnUpdate();
+									</OnUpdate>
+								</Scripts>
+							</Button>
+							<Button name="ArtisanReagent1" inherits="ArtisanItemTemplate" id="1">
+								<Anchors>
+									<Anchor point="TOPLEFT" relativeTo="ArtisanReagentLabel" relativePoint="BOTTOMLEFT">
+										<Offset>
+											<AbsDimension x="-5" y="-3"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent2" inherits="ArtisanItemTemplate" id="2">
+								<Anchors>
+									<Anchor point="LEFT" relativeTo="ArtisanReagent1" relativePoint="RIGHT">
+										<Offset>
+											<AbsDimension x="0" y="0"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent3" inherits="ArtisanItemTemplate" id="3">
+								<Anchors>
+									<Anchor point="TOPLEFT" relativeTo="ArtisanReagent1" relativePoint="BOTTOMLEFT">
+										<Offset>
+											<AbsDimension x="0" y="-2"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent4" inherits="ArtisanItemTemplate" id="4">
+								<Anchors>
+									<Anchor point="LEFT" relativeTo="ArtisanReagent3" relativePoint="RIGHT">
+										<Offset>
+											<AbsDimension x="0" y="0"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent5" inherits="ArtisanItemTemplate" id="5">
+								<Anchors>
+									<Anchor point="TOPLEFT" relativeTo="ArtisanReagent3" relativePoint="BOTTOMLEFT">
+										<Offset>
+											<AbsDimension x="0" y="-2"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent6" inherits="ArtisanItemTemplate" id="6">
+								<Anchors>
+									<Anchor point="LEFT" relativeTo="ArtisanReagent5" relativePoint="RIGHT">
+										<Offset>
+											<AbsDimension x="0" y="0"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent7" inherits="ArtisanItemTemplate" id="7">
+								<Anchors>
+									<Anchor point="TOPLEFT" relativeTo="ArtisanReagent5" relativePoint="BOTTOMLEFT">
+										<Offset>
+											<AbsDimension x="0" y="-2"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+							<Button name="ArtisanReagent8" inherits="ArtisanItemTemplate" id="8">
+								<Anchors>
+									<Anchor point="LEFT" relativeTo="ArtisanReagent7" relativePoint="RIGHT">
+										<Offset>
+											<AbsDimension x="0" y="0"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+							</Button>
+						</Frames>
+					</Frame>
+				</ScrollChild>
+			</ScrollFrame>
+			<Button name="ArtisanFrameCloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="CENTER" relativePoint="TOPRIGHT">
+                        <Offset>
+                            <AbsDimension x="-46" y="-24" />
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+            </Button>
+			<Button name="ArtisanFrameCancelButton" inherits="UIPanelButtonTemplate" text="EXIT">
+				<Size>
+					<AbsDimension x="80" y="22"/>
+				</Size>
+				<Anchors>
+					<Anchor point="CENTER" relativePoint="TOPLEFT">
+						<Offset>
+							<AbsDimension x="304" y="-421"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						HideUIPanel(this:GetParent());
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="ArtisanFrameCreateButton" inherits="UIPanelButtonTemplate" text="CREATE">
+				<Size>
+					<AbsDimension x="80" y="22"/>
+				</Size>
+				<Anchors>
+					<Anchor point="CENTER" relativePoint="TOPLEFT">
+						<Offset>
+							<AbsDimension x="223" y="-421"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						if ArtisanFrame.craft then
+							local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+							DoCraft(originalID)
+						else
+							DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrameInputBox:GetNumber());
+						end
+						ArtisanFrameInputBox:ClearFocus();
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="ArtisanFrameCreateAllButton" inherits="UIPanelButtonTemplate" text="CREATE_ALL">
+				<Size>
+					<AbsDimension x="80" y="22"/>
+				</Size>
+				<Anchors>
+					<Anchor point="RIGHT" relativeTo="ArtisanFrameCreateButton" relativePoint="LEFT">
+						<Offset>
+							<AbsDimension x="-85" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						ArtisanFrameInputBox:SetNumber(ArtisanFrame.numAvailable);
+						DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrame.numAvailable);
+						ArtisanFrameInputBox:ClearFocus();
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="ArtisanFrameDecrementButton">
+				<Size>
+					<AbsDimension x="23" y="22"/>
+				</Size>
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="ArtisanFrameCreateAllButton" relativePoint="RIGHT">
+						<Offset>
+							<AbsDimension x="3" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						ArtisanFrameDecrementButton_OnClick();
+						ArtisanFrameInputBox:ClearFocus();
+					</OnClick>
+				</Scripts>
+				<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
+				<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
+				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+			</Button>
+			<EditBox name="ArtisanFrameInputBox" letters="3" historyLines="0" numeric="true" autoFocus="false">
+				<Size>
+					<AbsDimension x="30" y="20"/>
+				</Size>
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="ArtisanFrameDecrementButton" relativePoint="RIGHT">
+						<Offset>
+							<AbsDimension x="4" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<Texture name="$parentLeft" file="Interface\Common\Common-Input-Border">
+							<Size>
+								<AbsDimension x="8" y="20"/>
+							</Size>
+							<Anchors>
+								<Anchor point="TOPLEFT">
+									<Offset>
+										<AbsDimension x="-5" y="0"/>
+									</Offset>
+								</Anchor>
+							</Anchors>
+							<TexCoords left="0" right="0.0625" top="0" bottom="0.625"/>
+						</Texture>
+						<Texture name="$parentRight" file="Interface\Common\Common-Input-Border">
+							<Size>
+								<AbsDimension x="8" y="20"/>
+							</Size>
+							<Anchors>
+								<Anchor point="RIGHT">
+									<Offset>
+										<AbsDimension x="0" y="0"/>
+									</Offset>
+								</Anchor>
+							</Anchors>
+							<TexCoords left="0.9375" right="1.0" top="0" bottom="0.625"/>
+						</Texture>
+						<Texture name="$parentMiddle" file="Interface\Common\Common-Input-Border">
+							<Size>
+								<AbsDimension x="10" y="20"/>
+							</Size>
+							<Anchors>
+								<Anchor point="LEFT" relativeTo="$parentLeft" relativePoint="RIGHT"/>
+								<Anchor point="RIGHT" relativeTo="$parentRight" relativePoint="LEFT"/>
+							</Anchors>
+							<TexCoords left="0.0625" right="0.9375" top="0" bottom="0.625"/>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnEnterPressed>
+						this:ClearFocus();
+					</OnEnterPressed>
+					<OnEscapePressed>
+						this:ClearFocus();
+					</OnEscapePressed>
+					<OnTextChanged>
+						if ( this:GetText() == "0" ) then
+							this:SetText("1");
+						end
+					</OnTextChanged> 
+					<OnEditFocusLost>
+						this:HighlightText(0, 0);
+					</OnEditFocusLost>
+					<OnEditFocusGained>
+						this:HighlightText();
+					</OnEditFocusGained>
+				</Scripts>
+				<FontString inherits="ChatFontNormal"/>
+			</EditBox>
+			<Button name="ArtisanFrameIncrementButton">
+				<Size>
+					<AbsDimension x="23" y="22"/>
+				</Size>
+				<Anchors>
+					<Anchor point="RIGHT" relativeTo="ArtisanFrameCreateButton" relativePoint="LEFT">
+						<Offset>
+							<AbsDimension x="-3" y="0"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						ArtisanFrameIncrementButton_OnClick();
+						ArtisanFrameInputBox:ClearFocus();
+					</OnClick>
+				</Scripts>
+				<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up"/>
+				<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Down"/>
+				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+			</Button>
+        </Frames>
+		<Scripts>
+			<OnLoad>
+				ArtisanFrame_OnLoad()
+			</OnLoad>
+			<OnEvent>
+				ArtisanFrame_OnEvent()
+			</OnEvent>
+			<OnShow>
+				ArtisanFrameInputBox:SetNumber(1)
+				PlaySound("igCharacterInfoOpen");
+			</OnShow>
+			<OnHide>
+				this.selectedTabName = nil
+				CloseCraft()
+				CloseTradeSkill()
+				PlaySound("igCharacterInfoClose");
+			</OnHide>
+			<OnMouseWheel>
+				return;
+			</OnMouseWheel>
+			<OnMouseDown>
+				ArtisanFrameSearchBox:ClearFocus()
+				--CloseDropDownMenus()
+			</OnMouseDown>
+		</Scripts>
+	</Frame>
+</Ui>
