@@ -20,6 +20,16 @@
 			<OnClick>
 				ArtisanSkillButton_OnClick(arg1)
 			</OnClick>
+			<OnLeave>
+				if ( ArtisanFrame.selectedSkill ~= this:GetID() ) then
+					getglobal(this:GetName().."SubText"):SetTextColor(this.r, this.g, this.b)
+					getglobal(this:GetName().."Cost"):SetTextColor(this.r, this.g, this.b)
+				end
+			</OnLeave>
+			<OnEnter>
+				getglobal(this:GetName().."SubText"):SetTextColor(1, 1, 1)
+				getglobal(this:GetName().."Cost"):SetTextColor(1, 1, 1)
+			</OnEnter>
 		</Scripts>
 	</Button>
     <Button name="ArtisanItemTemplate" inherits="QuestItemTemplate" virtual="true">
@@ -512,40 +522,6 @@
 				</Scripts>
 				<FontString name="$parentSearchString" inherits="GameFontNormal"></FontString>
 			</EditBox>
-			<!--Frame name="ArtisanInvSlotDropDown" inherits="UIDropDownMenuTemplate" id="2">
-				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
-						<Offset>
-							<AbsDimension x="56" y="-64" />
-						</Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnLoad>
-						ArtisanInvSlotDropDown_OnLoad()
-					</OnLoad>
-					<OnShow>
-						ArtisanInvSlotDropDown_OnShow()
-					</OnShow>
-				</Scripts>
-			</Frame>
-			<Frame name="ArtisanSubClassDropDown" inherits="UIDropDownMenuTemplate" id="1">
-				<Anchors>
-					<Anchor point="RIGHT" relativeTo="ArtisanInvSlotDropDown" relativePoint="LEFT">
-						<Offset>
-							<AbsDimension x="172" y="0"/>
-						</Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnLoad>
-						ArtisanSubClassDropDown_OnLoad()
-					</OnLoad>
-					<OnShow>
-						ArtisanSubClassDropDown_OnShow()
-					</OnShow>
-				</Scripts>
-			</Frame-->
             <Frame name="ArtisanHighlightFrame" hidden="true">
 				<Size>
 					<AbsDimension x="293" y="16"/>
