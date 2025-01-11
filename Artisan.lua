@@ -839,6 +839,7 @@ function ArtisanSideTab_OnCLick()
             ArtisanFrame.craft = false
         end
         ArtisanFrame.selectedTabName = this.name
+        Artisan_UpdateSkillList()
         ArtisanFrame.selectedSkill = Artisan_GetFirstCraft()
         CastSpellByName(this.name)
         Artisan_SetSelection(Artisan_GetFirstCraft())
