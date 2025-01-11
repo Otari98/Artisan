@@ -4,8 +4,8 @@ local craftsDisplayed = 12
 local maxTabs = 7
 local searchResults = {}
 local playerProfessions = {}
-local craftingSkills = craftingSkills or {}
-local collapsedHeaders = collapsedHeaders or {}
+craftingSkills = craftingSkills or {}
+collapsedHeaders = collapsedHeaders or {}
 
 local professions = {
     ["primary"] = {

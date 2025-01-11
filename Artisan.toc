@@ -3,5 +3,5 @@
 ## Author: Otari98
 ## Version: 1.0
 ## Notes: Crafting UI improvements
-
+## SavedVariablesPerCharacter: craftingSkills, collapsedHeaders
 Artisan.xml
