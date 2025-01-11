@@ -1133,3 +1133,11 @@ function Artisan_GetCraftTools(id)
     local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
     return GetCraftSpellFocus(originalID)
 end
+
+function ArtisanEditButton_OnClick()
+    if ArtisanCustomSortingEditor:IsVisible() then
+        ArtisanCustomSortingEditor:Hide()
+    else
+        ArtisanCustomSortingEditor:Show()
+    end
+end

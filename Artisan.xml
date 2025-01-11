@@ -1090,6 +1090,82 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
+			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2">
+				<Size x="60" y="32"/>
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-40" y="-50"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						ArtisanEditButton_OnClick()
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Frame name="ArtisanCustomSortingEditor" hidden="true" movable="true" toplevel="true" enableMouse="true">
+				<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+                    <BackgroundInsets>
+                        <AbsInset left="11" right="12" top="12" bottom="11"/>
+                    </BackgroundInsets>
+                    <TileSize>
+                        <AbsValue val="32"/>
+                    </TileSize>
+                    <EdgeSize>
+                        <AbsValue val="32"/>
+                    </EdgeSize>
+                </Backdrop>
+				<Size x="680" y="460"/>
+				<Anchors>
+					<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT">
+						<Offset x="0" y="25"/>
+					</Anchor>
+				</Anchors>
+				<Frames>
+					<ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+						<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+							<BackgroundInsets>
+								<AbsInset left="0" right="0" top="0" bottom="0"/>
+							</BackgroundInsets>
+							<TileSize>
+								<AbsValue val="32"/>
+							</TileSize>
+						</Backdrop>
+						<Size x="296" y="400"/>
+						<Anchors>
+							<Anchor point="LEFT">
+								<Offset x="15" y="0"/>
+							</Anchor>
+						</Anchors>
+						<Scripts>
+							<OnVerticalScroll>
+								
+							</OnVerticalScroll>
+						</Scripts>
+					</ScrollFrame>
+					<ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+						<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+							<BackgroundInsets>
+								<AbsInset left="0" right="0" top="0" bottom="0"/>
+							</BackgroundInsets>
+							<TileSize>
+								<AbsValue val="32"/>
+							</TileSize>
+						</Backdrop>
+						<Size x="296" y="400"/>
+						<Anchors>
+							<Anchor point="LEFT" relativeTo="ArtisanEditorScrollFrameLeft" relativePoint="RIGHT">
+								<Offset x="30" y="0"/>
+							</Anchor>
+						</Anchors>
+						<Scripts>
+							<OnVerticalScroll>
+								
+							</OnVerticalScroll>
+						</Scripts>
+					</ScrollFrame>
+				</Frames>
+			</Frame>
         </Frames>
 		<Scripts>
 			<OnLoad>
