@@ -4,8 +4,8 @@ local craftsDisplayed = 12
 local maxTabs = 7
 local searchResults = {}
 local playerProfessions = {}
-craftingSkills = craftingSkills or {}
-collapsedHeaders = collapsedHeaders or {}
+local craftingSkills = craftingSkills or {}
+local collapsedHeaders = collapsedHeaders or {}
 
 local professions = {
     ["primary"] = {
@@ -188,8 +188,8 @@ function Artisan_Init()
     ArtisanFrame.selectedSkill = 0
     ArtisanFrame.originalScroll = ArtisanDetailScrollFrame:GetScript("OnMouseWheel")
     FauxScrollFrame_SetOffset(TradeSkillListScrollFrame, 0)
-    ArtisanConfig = ArtisanConfig or {}
-    ArtisanConfig.sorting = "default"
+    -- ArtisanConfig = ArtisanConfig or {}
+    -- ArtisanConfig.sorting = "default"
 end
 
 function ArtisanFrame_OnEvent()
@@ -371,7 +371,7 @@ function Artisan_UpdateSkillList()
         numHeaders = 1
         local index = 1
         local headerIndex = 0
-        if ArtisanConfig.sorting == "default" then
+        --if ArtisanConfig.sorting == "default" then
             for pattern, header in pairs(patternsToHeaders[craft]) do
                 for i = 1, GetNumCrafts() do
                     local craftName, craftSub, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
@@ -408,9 +408,9 @@ function Artisan_UpdateSkillList()
                     end
                 end
             end
-        elseif ArtisanConfig.sorting == "custom" then
+        --elseif ArtisanConfig.sorting == "custom" then
 
-        end
+        --end
     elseif craft == "Beast Training" then
         local index = 1
         for i = 1, GetNumCrafts() do
