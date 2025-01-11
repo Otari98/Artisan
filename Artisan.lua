@@ -367,7 +367,7 @@ function Artisan_UpdateSkillList()
 
     local numHeaders = 0
     if craft == "Enchanting" then
-        craftingSkills[craft][0] = {name = "All", sub = "", type = "header", num = 0, exp = 1, tp = 0, lvl = 0, id = 0, childs= {}}
+        craftingSkills[craft][0] = {name = "All", type = "header", exp = 1, childs= {}}
         numHeaders = 1
         local index = 1
         local headerIndex = 0
@@ -378,7 +378,7 @@ function Artisan_UpdateSkillList()
                     if strfind(strlower(craftName) or "", strlower(pattern)) then
                         numHeaders = numHeaders + 1
                         tinsert(craftingSkills[craft][0].childs, header)
-                        craftingSkills[craft][index] = {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0, childs = {}}
+                        craftingSkills[craft][index] = {name = "", type = "", childs = {}}
                         craftingSkills[craft][index].name = header
                         craftingSkills[craft][index].type = "header"
                         if not listContains(collapsedHeaders[craft], header) then
@@ -390,12 +390,12 @@ function Artisan_UpdateSkillList()
                             local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
                             if strfind(strlower(name) or "", strlower(pattern)) then
                                 if craftingSkills[craft][headerIndex].exp == 1 then
-                                    craftingSkills[craft][index] = {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0}
+                                    craftingSkills[craft][index] = {name = "", type = "", num = 0, id = 0}
                                     craftingSkills[craft][index].name = name
-                                    craftingSkills[craft][index].sub = sub
                                     craftingSkills[craft][index].type = type
                                     craftingSkills[craft][index].num = num
                                     craftingSkills[craft][index].exp = exp
+                                    craftingSkills[craft][index].sub = sub
                                     craftingSkills[craft][index].tp = tp
                                     craftingSkills[craft][index].lvl = lvl
                                     craftingSkills[craft][index].id = j
@@ -409,10 +409,7 @@ function Artisan_UpdateSkillList()
                 end
             end
         elseif ArtisanConfig.sorting == "custom" then
-            for i = 1, GetNumCrafts() do
-                local craftName, craftSub, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
 
-            end
         end
     elseif craft == "Beast Training" then
         local index = 1
@@ -923,7 +920,7 @@ function Artisan_GetCraftInfo(index)
     local craftName = ""
     local craftType = ""
     local numAvailable = 0
-    local isExpanded = 0
+    local isExpanded = nil
     local craftSubSpellName = ""
     local trainingPointCost = 0
     local requiredLevel = 0
@@ -932,7 +929,7 @@ function Artisan_GetCraftInfo(index)
         craftName = craftingSkills[craft][index].name or ""
         craftType = craftingSkills[craft][index].type or ""
         numAvailable = craftingSkills[craft][index].num or 0
-        isExpanded = craftingSkills[craft][index].exp or 0
+        isExpanded = craftingSkills[craft][index].exp or nil
         craftSubSpellName = craftingSkills[craft][index].sub or ""
         trainingPointCost = craftingSkills[craft][index].tp or 0
         requiredLevel = craftingSkills[craft][index].lvl or 0
