@@ -125,13 +125,13 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-				<FontString name="ArtisanSortingLabel" inherits="GameFontNormalSmall" text="Sorting options:">
+				<!-- <FontString name="ArtisanSortingLabel" inherits="GameFontNormalSmall" text="Sorting options:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
 							<Offset x="75" y="-59"/>
 						</Anchor>
 					</Anchors>
-				</FontString>
+				</FontString> -->
 				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopLeft">
 					<Size>
 						<AbsDimension x="256" y="256"/>
@@ -292,7 +292,6 @@
 						<Scripts>
 							<OnClick>
 								ArtisanFrameSearchBox:ClearFocus()
-								--CloseDropDownMenus()
 							</OnClick>
 						</Scripts>
 					</Button>			
@@ -1097,7 +1096,7 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
-			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2">
+			<!-- <Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2">
 				<Size x="60" y="32"/>
 				<Anchors>
 					<Anchor point="TOPRIGHT">
@@ -1145,7 +1144,7 @@
                         PlaySound("igMainMenuOptionCheckBoxOn")
 					</OnClick>
 				</Scripts>
-			</CheckButton>
+			</CheckButton> -->
 			<!-- <CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
 				<Size x="24" y="24"/>
 				<Anchors>
@@ -1205,7 +1204,6 @@
 			</OnMouseWheel>
 			<OnMouseDown>
 				ArtisanFrameSearchBox:ClearFocus()
-				--CloseDropDownMenus()
 			</OnMouseDown>
 		</Scripts>
 	</Frame>
