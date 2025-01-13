@@ -125,6 +125,13 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
+				<FontString name="ArtisanSortingLabel" inherits="GameFontNormalSmall" text="Sorting options:">
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset x="75" y="-59"/>
+						</Anchor>
+					</Anchors>
+				</FontString>
 				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopLeft">
 					<Size>
 						<AbsDimension x="256" y="256"/>
@@ -1103,69 +1110,77 @@
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Frame name="ArtisanCustomSortingEditor" hidden="true" movable="true" toplevel="true" enableMouse="true">
-				<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
-                    <BackgroundInsets>
-                        <AbsInset left="11" right="12" top="12" bottom="11"/>
-                    </BackgroundInsets>
-                    <TileSize>
-                        <AbsValue val="32"/>
-                    </TileSize>
-                    <EdgeSize>
-                        <AbsValue val="32"/>
-                    </EdgeSize>
-                </Backdrop>
-				<Size x="680" y="460"/>
+			<CheckButton name="ArtisanSortDefault" inherits="OptionsCheckButtonTemplate" id="1">
+				<Size x="24" y="24"/>
 				<Anchors>
-					<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT">
-						<Offset x="0" y="25"/>
+					<Anchor point="TOPLEFT">
+						<Offset x="70" y="-73"/>
 					</Anchor>
 				</Anchors>
-				<Frames>
-					<ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
-						<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
-							<BackgroundInsets>
-								<AbsInset left="0" right="0" top="0" bottom="0"/>
-							</BackgroundInsets>
-							<TileSize>
-								<AbsValue val="32"/>
-							</TileSize>
-						</Backdrop>
-						<Size x="296" y="400"/>
-						<Anchors>
-							<Anchor point="LEFT">
-								<Offset x="15" y="0"/>
-							</Anchor>
-						</Anchors>
-						<Scripts>
-							<OnVerticalScroll>
-								
-							</OnVerticalScroll>
-						</Scripts>
-					</ScrollFrame>
-					<ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
-						<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
-							<BackgroundInsets>
-								<AbsInset left="0" right="0" top="0" bottom="0"/>
-							</BackgroundInsets>
-							<TileSize>
-								<AbsValue val="32"/>
-							</TileSize>
-						</Backdrop>
-						<Size x="296" y="400"/>
-						<Anchors>
-							<Anchor point="LEFT" relativeTo="ArtisanEditorScrollFrameLeft" relativePoint="RIGHT">
-								<Offset x="30" y="0"/>
-							</Anchor>
-						</Anchors>
-						<Scripts>
-							<OnVerticalScroll>
-								
-							</OnVerticalScroll>
-						</Scripts>
-					</ScrollFrame>
-				</Frames>
-			</Frame>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Default")
+					</OnLoad>
+					<OnClick>
+						ArtisanSortDefault_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanSortCustom" inherits="OptionsCheckButtonTemplate" id="2" enable="true">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanSortDefault" relativePoint="RIGHT">
+						<Offset x="60" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Custom")
+						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+					</OnLoad>
+					<OnClick>
+						ArtisanSortCustom_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor  point="CENTER" relativeTo="ArtisanSortCustom" relativePoint="RIGHT">
+						<Offset x="60" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Skill")
+						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+					</OnLoad>
+					<OnClick>
+						ArtisanSortSkill_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanSortName" inherits="UICheckButtonTemplate" id="4">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanSortSkill" relativePoint="RIGHT">
+						<Offset x="50" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Name")
+						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+					</OnLoad>
+					<OnClick>
+						ArtisanSortName_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
         </Frames>
 		<Scripts>
 			<OnLoad>

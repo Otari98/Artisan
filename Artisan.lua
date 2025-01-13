@@ -1216,3 +1216,23 @@ function ArtisanEditButton_OnClick()
         ArtisanCustomSortingEditor:Show()
     end
 end
+
+function ArtisanSortDefault_OnClick()
+
+end
+
+function ArtisanSortCustom_OnClick()
+
+end
+
+function ArtisanSortSkill_OnClick()
+
+end
+
+function ArtisanSortName_OnClick()
+
+end
+
+function ArtisanUncategorized_OnClick()
+
+end
