@@ -31,21 +31,32 @@ local professions = {
 
 local patternsToHeaders = {
     ["Enchanting"] = {
-        ["bracer"] = "Bracer",
-        ["boots"] = "Boots",
-        ["gloves"] = "Gloves",
-        ["2h weapon"] = "2H weapon",
-        ["enchant weapon"] = "Weapon",
-        ["wand"] = "Wand",
-        ["oil$"] = "Consumable",
-        ["cloak"] = "Cloak",
-        ["chest"] = "Chest",
-        ["shield"] = "Shield",
-        ["rod$"] = "Miscellaneous",
-        ["leather$"] = "Miscellaneous",
-        ["thorium$"] = "Miscellaneous",
-        ["shard$"] = "Miscellaneous",
-        ["^smoking heart"] = "Miscellaneous",
+        -- ["bracer"] = "Bracer",
+        -- ["boots"] = "Boots",
+        -- ["gloves"] = "Gloves",
+        -- ["2h weapon"] = "2H weapon",
+        -- ["enchant weapon"] = "Weapon",
+        -- ["wand"] = "Wand",
+        -- ["oil$"] = "Consumable",
+        -- ["cloak"] = "Cloak",
+        -- ["chest"] = "Chest",
+        -- ["shield"] = "Shield",
+        -- ["rod$"] = "Miscellaneous",
+        -- ["leather$"] = "Miscellaneous",
+        -- ["thorium$"] = "Miscellaneous",
+        -- ["shard$"] = "Miscellaneous",
+        -- ["^smoking heart"] = "Miscellaneous",
+        ["Bracer"] = {"bracer"},
+        ["Boots"] = {"boots"},
+        ["Gloves"] = {"gloves"},
+        ["2H weapon"] = {"2h weapon"},
+        ["Weapon"] = {"enchant weapon"},
+        ["Wand"] = {"wand"},
+        ["Consumable"] = {"mana oil$", "wizard oil$"},
+        ["Cloak"] = {"cloak"},
+        ["Chest"] = {"chest"},
+        ["Shield"] = {"shield"},
+        ["Miscellaneous"] = {"rod$", "gemstone oil$", "leather$", "thorium$", "shard$", "^smoking heart"},
     }
 }
 
@@ -89,7 +100,7 @@ function a_print(...)
             msg = msg..", "..t[j]
         end
     end
-    ChatFrame1:AddMessage(msg)
+    ChatFrame1:AddMessage("["..GetTime().."]"..msg)
 end
 
 local function listContains(list, key, value)
@@ -208,21 +219,28 @@ function ArtisanFrame_OnEvent()
     elseif event == "UNIT_PET_TRAINING_POINTS" then
 		Artisan_UpdateTrainingPoints()
     elseif event == "TRADE_SKILL_UPDATE" then
+        if (this.tick or 0.01) > GetTime() then
+            return
+        else
+            this.tick = GetTime() + 0.01
+        end
         Artisan_SetupSideTabs()
-        local selection = ArtisanFrame.selectedSkill
-        local numCrafts = Artisan_GetNumCrafts()
-		if selection > 1 and selection <= numCrafts then
-			Artisan_SetSelection(selection)
+        if GetTradeSkillSelectionIndex() > 1 and GetTradeSkillSelectionIndex() <= GetNumTradeSkills() then
+			Artisan_SetSelection(GetTradeSkillSelectionIndex())
 		else
-			if numCrafts > 0 then
-				Artisan_SetSelection(Artisan_GetFirstCraft())
+			if GetNumTradeSkills() > 0 then
+				Artisan_SetSelection(GetFirstTradeSkill())
 				FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-                ArtisanListScrollFrame:SetVerticalScroll(0)
 			end
 			ArtisanListScrollFrameScrollBar:SetValue(0)
 		end
 		ArtisanFrame_Update()
     elseif event == "CRAFT_UPDATE" then
+        if (this.tick or 0.01) > GetTime() then
+            return
+        else
+            this.tick = GetTime() + 0.01
+        end
         Artisan_SetupSideTabs()
         Artisan_UpdateSkillList()
         local selection = ArtisanFrame.selectedSkill
@@ -367,25 +385,80 @@ function Artisan_UpdateSkillList()
 
     local numHeaders = 0
     if craft == "Enchanting" then
+        -- craftingSkills[craft][0] = {name = "All", type = "header", exp = 1, childs= {}}
+        -- numHeaders = 1
+        -- local index = 1
+        -- local headerIndex = 0
+        -- if ArtisanConfig.sorting == "default" then
+        --     for pattern, header in pairs(patternsToHeaders[craft]) do
+        --         for i = 1, GetNumCrafts() do
+        --             local craftName, craftSub, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
+        --             if strfind(strlower(craftName) or "", strlower(pattern)) then
+        --                 numHeaders = numHeaders + 1
+        --                 tinsert(craftingSkills[craft][0].childs, header)
+        --                 craftingSkills[craft][index] = {name = "", type = "", childs = {}}
+        --                 craftingSkills[craft][index].name = header
+        --                 craftingSkills[craft][index].type = "header"
+        --                 if not listContains(collapsedHeaders[craft], header) then
+        --                     craftingSkills[craft][index].exp = 1
+        --                 end
+        --                 index = index + 1
+        --                 headerIndex = index - 1
+        --                 for j = 1, GetNumCrafts() do
+        --                     local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
+        --                     if strfind(strlower(name) or "", strlower(pattern)) then
+        --                         if craftingSkills[craft][headerIndex].exp == 1 then
+        --                             craftingSkills[craft][index] = {name = "", type = "", num = 0, id = 0}
+        --                             craftingSkills[craft][index].name = name
+        --                             craftingSkills[craft][index].type = type
+        --                             craftingSkills[craft][index].num = num
+        --                             craftingSkills[craft][index].exp = exp
+        --                             craftingSkills[craft][index].sub = sub
+        --                             craftingSkills[craft][index].tp = tp
+        --                             craftingSkills[craft][index].lvl = lvl
+        --                             craftingSkills[craft][index].id = j
+        --                             index = index + 1
+        --                         end
+        --                         tinsert(craftingSkills[craft][headerIndex].childs, name)
+        --                     end
+        --                 end
+        --                 break
+        --             end
+        --         end
+        --     end
+        -- elseif ArtisanConfig.sorting == "custom" then
+
+        -- end
+    
         craftingSkills[craft][0] = {name = "All", type = "header", exp = 1, childs= {}}
         numHeaders = 1
         local index = 1
         local headerIndex = 0
-        if ArtisanConfig.sorting == "default" then
-            for pattern, header in pairs(patternsToHeaders[craft]) do
+        for header in pairs(patternsToHeaders[craft]) do
+            for _, pattern in pairs(patternsToHeaders[craft][header]) do
                 for i = 1, GetNumCrafts() do
-                    local craftName, craftSub, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
+                    local craftName = GetCraftInfo(i)
                     if strfind(strlower(craftName) or "", strlower(pattern)) then
-                        numHeaders = numHeaders + 1
-                        tinsert(craftingSkills[craft][0].childs, header)
-                        craftingSkills[craft][index] = {name = "", type = "", childs = {}}
-                        craftingSkills[craft][index].name = header
-                        craftingSkills[craft][index].type = "header"
-                        if not listContains(collapsedHeaders[craft], header) then
-                            craftingSkills[craft][index].exp = 1
+                        local found = false
+                        for k, v in pairs(craftingSkills[craft]) do
+                            -- header exists already
+                            if v.name == header then
+                                headerIndex = k
+                                found = true
+                            end
                         end
-                        index = index + 1
-                        headerIndex = index - 1
+                        -- add new header
+                        if not found then
+                            numHeaders = numHeaders + 1
+                            tinsert(craftingSkills[craft][0].childs, header)
+                            craftingSkills[craft][index] = {name = header, type = "header", childs = {}}
+                            if not listContains(collapsedHeaders[craft], header) then
+                                craftingSkills[craft][index].exp = 1
+                            end
+                            headerIndex = index
+                            index = index + 1
+                        end
+                        -- populate header
                         for j = 1, GetNumCrafts() do
                             local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
                             if strfind(strlower(name) or "", strlower(pattern)) then
@@ -408,8 +481,6 @@ function Artisan_UpdateSkillList()
                     end
                 end
             end
-        elseif ArtisanConfig.sorting == "custom" then
-
         end
     elseif craft == "Beast Training" then
         local index = 1
@@ -948,7 +1019,9 @@ end
 
 function Artisan_CollapseCraftSkillLine(id)
     if not ArtisanFrame.craft then
-        return CollapseTradeSkillSubClass(id)
+        CollapseTradeSkillSubClass(id)
+        ArtisanFrame_Update()
+        return
     end
 
     local craft = ArtisanFrame.selectedTabName
@@ -996,7 +1069,9 @@ end
 
 function Artisan_ExpandCraftSkillLine(id)
     if not ArtisanFrame.craft then
-        return ExpandTradeSkillSubClass(id)
+        ExpandTradeSkillSubClass(id)
+        ArtisanFrame_Update()
+        return
     end
 
     local craft = ArtisanFrame.selectedTabName
