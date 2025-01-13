@@ -1120,6 +1120,7 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Default")
+						this:SetFrameLevel(2)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortDefault_OnClick()
@@ -1137,7 +1138,7 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Custom")
-						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+						this:SetFrameLevel(3)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortCustom_OnClick()
@@ -1145,7 +1146,7 @@
 					</OnClick>
 				</Scripts>
 			</CheckButton>
-			<CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
+			<!-- <CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
 				<Size x="24" y="24"/>
 				<Anchors>
 					<Anchor  point="CENTER" relativeTo="ArtisanSortCustom" relativePoint="RIGHT">
@@ -1155,7 +1156,7 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Skill")
-						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+						this:SetFrameLevel(4)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortSkill_OnClick()
@@ -1163,7 +1164,7 @@
 					</OnClick>
 				</Scripts>
 			</CheckButton>
-			<CheckButton name="ArtisanSortName" inherits="UICheckButtonTemplate" id="4">
+			<CheckButton name="ArtisanSortName" inherits="OptionsCheckButtonTemplate" id="4">
 				<Size x="24" y="24"/>
 				<Anchors>
 					<Anchor point="CENTER" relativeTo="ArtisanSortSkill" relativePoint="RIGHT">
@@ -1173,14 +1174,14 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Name")
-						this:SetFrameLevel(this:GetFrameLevel() + this:GetID())
+						this:SetFrameLevel(5)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortName_OnClick()
                         PlaySound("igMainMenuOptionCheckBoxOn")
 					</OnClick>
 				</Scripts>
-			</CheckButton>
+			</CheckButton> -->
         </Frames>
 		<Scripts>
 			<OnLoad>
