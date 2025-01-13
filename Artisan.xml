@@ -125,6 +125,13 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
+				<FontString name="ArtisanSortingLabel" inherits="GameFontNormalSmall" text="Sorting options:">
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset x="75" y="-59"/>
+						</Anchor>
+					</Anchors>
+				</FontString>
 				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopLeft">
 					<Size>
 						<AbsDimension x="256" y="256"/>
@@ -1090,6 +1097,91 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
+			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2">
+				<Size x="60" y="32"/>
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-40" y="-50"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						ArtisanEditButton_OnClick()
+					</OnClick>
+				</Scripts>
+			</Button>
+			<CheckButton name="ArtisanSortDefault" inherits="OptionsCheckButtonTemplate" id="1">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset x="70" y="-73"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Default")
+						this:SetFrameLevel(2)
+					</OnLoad>
+					<OnClick>
+						ArtisanSortDefault_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanSortCustom" inherits="OptionsCheckButtonTemplate" id="2" enable="true">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanSortDefault" relativePoint="RIGHT">
+						<Offset x="60" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Custom")
+						this:SetFrameLevel(3)
+					</OnLoad>
+					<OnClick>
+						ArtisanSortCustom_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<!-- <CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor  point="CENTER" relativeTo="ArtisanSortCustom" relativePoint="RIGHT">
+						<Offset x="60" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Skill")
+						this:SetFrameLevel(4)
+					</OnLoad>
+					<OnClick>
+						ArtisanSortSkill_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanSortName" inherits="OptionsCheckButtonTemplate" id="4">
+				<Size x="24" y="24"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanSortSkill" relativePoint="RIGHT">
+						<Offset x="50" y="0"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Name")
+						this:SetFrameLevel(5)
+					</OnLoad>
+					<OnClick>
+						ArtisanSortName_OnClick()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton> -->
         </Frames>
 		<Scripts>
 			<OnLoad>

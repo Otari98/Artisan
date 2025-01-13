@@ -1,0 +1,82 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+	<Button name="ArtisanUncategorizedButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+		<Scripts>
+			<OnClick>
+				ArtisanUncategorized_OnClick(arg1)
+			</OnClick>
+			<OnLeave>
+				if ( ArtisanFrame.selectedSkill ~= this:GetID() ) then
+					getglobal(this:GetName().."SubText"):SetTextColor(this.r, this.g, this.b)
+				end
+			</OnLeave>
+			<OnEnter>
+				getglobal(this:GetName().."SubText"):SetTextColor(1, 1, 1)
+			</OnEnter>
+		</Scripts>
+	</Button>
+    <Frame name="ArtisanCustomSortingEditor" parent="ArtisanFrame" hidden="true" movable="true" toplevel="true" enableMouse="true">
+        <Size x="680" y="460"/>
+        <Anchors>
+            <Anchor point="LEFT" relativeTo="ArtisanFrame" relativePoint="RIGHT">
+                <Offset x="0" y="25"/>
+            </Anchor>
+        </Anchors>
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+            <BackgroundInsets>
+                <AbsInset left="11" right="12" top="12" bottom="11"/>
+            </BackgroundInsets>
+            <TileSize>
+                <AbsValue val="32"/>
+            </TileSize>
+            <EdgeSize>
+                <AbsValue val="32"/>
+            </EdgeSize>
+        </Backdrop>
+        <Frames>
+            <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+                <Size x="296" y="400"/>
+                <Anchors>
+                    <Anchor point="LEFT">
+                        <Offset x="15" y="0"/>
+                    </Anchor>
+                </Anchors>
+                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                    <BackgroundInsets>
+                        <AbsInset left="0" right="0" top="0" bottom="0"/>
+                    </BackgroundInsets>
+                    <TileSize>
+                        <AbsValue val="32"/>
+                    </TileSize>
+                </Backdrop>
+                <Scripts>
+                    <OnVerticalScroll>
+                        
+                    </OnVerticalScroll>
+                </Scripts>
+            </ScrollFrame>
+            <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+                <Size x="296" y="400"/>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="ArtisanEditorScrollFrameLeft" relativePoint="RIGHT">
+                        <Offset x="30" y="0"/>
+                    </Anchor>
+                </Anchors>
+                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                    <BackgroundInsets>
+                        <AbsInset left="0" right="0" top="0" bottom="0"/>
+                    </BackgroundInsets>
+                    <TileSize>
+                        <AbsValue val="32"/>
+                    </TileSize>
+                </Backdrop>
+                <Scripts>
+                    <OnVerticalScroll>
+                        
+                    </OnVerticalScroll>
+                </Scripts>
+            </ScrollFrame>
+        </Frames>
+    </Frame>
+</Ui>

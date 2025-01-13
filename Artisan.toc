@@ -5,3 +5,4 @@
 ## Notes: Crafting UI improvements
 ## SavedVariablesPerCharacter: craftingSkills, collapsedHeaders
 Artisan.xml
+CustomCategories.xml
