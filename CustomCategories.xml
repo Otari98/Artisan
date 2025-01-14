@@ -1,22 +1,44 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
-	<Button name="ArtisanUncategorizedButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+	<Button name="ArtisanEditorLeftButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
 		<Scripts>
 			<OnClick>
-				ArtisanUncategorized_OnClick(arg1)
+				ArtisanEditorLeftButton_OnClick(arg1)
 			</OnClick>
-			<OnLeave>
-				if ( ArtisanFrame.selectedSkill ~= this:GetID() ) then
-					getglobal(this:GetName().."SubText"):SetTextColor(this.r, this.g, this.b)
-				end
-			</OnLeave>
-			<OnEnter>
-				getglobal(this:GetName().."SubText"):SetTextColor(1, 1, 1)
-			</OnEnter>
+
 		</Scripts>
 	</Button>
-    <Frame name="ArtisanCustomSortingEditor" parent="ArtisanFrame" hidden="true" movable="true" toplevel="true" enableMouse="true">
+	<Button name="ArtisanEditorRightButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+		<Scripts>
+			<OnClick>
+				ArtisanEditorRightButton_OnClick(arg1)
+			</OnClick>
+		</Scripts>
+	</Button>
+    <Button name="ArtisanRightButtonUpTemplate" inherits="UIPanelScrollUpButtonTemplate" virtual="true">
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonUp_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Button name="ArtisanRightButtonDownTemplate" inherits="UIPanelScrollDownButtonTemplate" virtual="true">
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonDown_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Button name="ArtisanRightButtonDeleteTemplate" inherits="UIPanelCloseButton" virtual="true">
+        <Size x="24" y="24"/>
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonDelete_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Frame name="ArtisanEditor" parent="ArtisanFrame" hidden="true" movable="true" toplevel="true" enableMouse="true">
         <Size x="680" y="460"/>
         <Anchors>
             <Anchor point="LEFT" relativeTo="ArtisanFrame" relativePoint="RIGHT">
@@ -51,12 +73,15 @@
                     </TileSize>
                 </Backdrop>
                 <Scripts>
+                    <OnLoad>
+                        ArtisanEditorScrollFrameLeft_OnLoad()
+                    </OnLoad>
                     <OnVerticalScroll>
-                        
+                        FauxScrollFrame_OnVerticalScroll(16, ArtisanEditorLeft_Update)
                     </OnVerticalScroll>
                 </Scripts>
             </ScrollFrame>
-            <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+            <ScrollFrame name="ArtisanEditorScrollFrameRight" inherits="FauxScrollFrameTemplate">
                 <Size x="296" y="400"/>
                 <Anchors>
                     <Anchor point="LEFT" relativeTo="ArtisanEditorScrollFrameLeft" relativePoint="RIGHT">
@@ -72,11 +97,32 @@
                     </TileSize>
                 </Backdrop>
                 <Scripts>
+                    <OnLoad>
+                        ArtisanEditorScrollFrameRight_OnLoad()
+                    </OnLoad>
                     <OnVerticalScroll>
-                        
+                        FauxScrollFrame_OnVerticalScroll(16, ArtisanEditorRight_Update)
                     </OnVerticalScroll>
                 </Scripts>
             </ScrollFrame>
+            <Button name="ArtisanEditorAddCategory" inherits="UIPanelButtonTemplate2" text="Add Category">
+                <Size x="100" y="24"/>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT">
+                        <Offset x="-100" y="10" />
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        ArtisanEditorAdd_OnClick()
+                    </OnClick>
+                </Scripts>
+            </Button>
         </Frames>
+        <Scripts>
+            <OnShow>
+                ArtisanEditor_OnShow()
+            </OnShow>
+        </Scripts>
     </Frame>
 </Ui>

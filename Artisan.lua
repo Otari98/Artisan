@@ -71,11 +71,13 @@ TypeColor["none"]	 = { r = 0.25, g = 0.75, b = 0.25 }
 
 UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
 
-local print = true
-function a_print(...)
-    if not print then
-        return
-    end
+local YELLOW = NORMAL_FONT_COLOR_CODE
+local WHITE = HIGHLIGHT_FONT_COLOR_CODE
+local GREEN = GREEN_FONT_COLOR_CODE
+local GREY = GRAY_FONT_COLOR_CODE
+local BLUE = "|cff0070de"
+
+function printf(...)
     local t = {}
     for i = 1, arg.n do
         if arg[i] == nil then
@@ -89,9 +91,9 @@ function a_print(...)
                 arg[i] = "false"
             end
         end
-        if arg[i] == "" then
-            arg[i] = '""'
-        end
+        -- if arg[i] == "" then
+        --     arg[i] = '""'
+        -- end
         t[i] = arg[i]
     end
     local msg = t[1]
@@ -100,7 +102,31 @@ function a_print(...)
             msg = msg..", "..t[j]
         end
     end
-    ChatFrame1:AddMessage("["..GetTime().."]"..msg)
+    DEFAULT_CHAT_FRAME:AddMessage(GREY.."["..GetTime().."]|r "..WHITE..msg.."|r")
+end
+
+local debugging = true
+local function debug(a)
+    if not debugging then
+        return
+    end
+    local msg = a
+    if a == nil then
+        msg = "Attempt to print a nil value."
+    elseif type(msg) == "boolean" then
+        if a then
+            msg = "true"
+        else
+            msg = "false"
+        end
+    elseif type(a) == "table" then
+        msg = "Attempt to print a table value."
+    elseif type(a) == "userdata" then
+        msg = "Attempt to print a userdata value."
+    elseif type(a) == "function" then
+        msg = "Attempt to print a function value."
+    end
+    DEFAULT_CHAT_FRAME:AddMessage(BLUE .."[Artisan]|r"..GREY.."["..GetTime().."]|r"..WHITE.."["..msg.."]|r")
 end
 
 local function listContains(list, key, value)
@@ -374,7 +400,9 @@ end
 
 function Artisan_UpdateSkillList()
     local craft = ArtisanFrame.selectedTabName
+    local sorting = ArtisanConfig.sorting
     craftingSkills[craft] = {}
+    craftingSkills[craft][sorting] = {}
     
     if not collapsedHeaders then
         collapsedHeaders = {}
@@ -382,55 +410,13 @@ function Artisan_UpdateSkillList()
     if not collapsedHeaders[craft] then
         collapsedHeaders[craft] = {}
     end
+    if not collapsedHeaders[craft][sorting] then
+        collapsedHeaders[craft][sorting] = {}
+    end
 
     local numHeaders = 0
     if craft == "Enchanting" then
-        -- craftingSkills[craft][0] = {name = "All", type = "header", exp = 1, childs= {}}
-        -- numHeaders = 1
-        -- local index = 1
-        -- local headerIndex = 0
-        -- if ArtisanConfig.sorting == "default" then
-        --     for pattern, header in pairs(patternsToHeaders[craft]) do
-        --         for i = 1, GetNumCrafts() do
-        --             local craftName, craftSub, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
-        --             if strfind(strlower(craftName) or "", strlower(pattern)) then
-        --                 numHeaders = numHeaders + 1
-        --                 tinsert(craftingSkills[craft][0].childs, header)
-        --                 craftingSkills[craft][index] = {name = "", type = "", childs = {}}
-        --                 craftingSkills[craft][index].name = header
-        --                 craftingSkills[craft][index].type = "header"
-        --                 if not listContains(collapsedHeaders[craft], header) then
-        --                     craftingSkills[craft][index].exp = 1
-        --                 end
-        --                 index = index + 1
-        --                 headerIndex = index - 1
-        --                 for j = 1, GetNumCrafts() do
-        --                     local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
-        --                     if strfind(strlower(name) or "", strlower(pattern)) then
-        --                         if craftingSkills[craft][headerIndex].exp == 1 then
-        --                             craftingSkills[craft][index] = {name = "", type = "", num = 0, id = 0}
-        --                             craftingSkills[craft][index].name = name
-        --                             craftingSkills[craft][index].type = type
-        --                             craftingSkills[craft][index].num = num
-        --                             craftingSkills[craft][index].exp = exp
-        --                             craftingSkills[craft][index].sub = sub
-        --                             craftingSkills[craft][index].tp = tp
-        --                             craftingSkills[craft][index].lvl = lvl
-        --                             craftingSkills[craft][index].id = j
-        --                             index = index + 1
-        --                         end
-        --                         tinsert(craftingSkills[craft][headerIndex].childs, name)
-        --                     end
-        --                 end
-        --                 break
-        --             end
-        --         end
-        --     end
-        -- elseif ArtisanConfig.sorting == "custom" then
-
-        -- end
-    
-        craftingSkills[craft][0] = {name = "All", type = "header", exp = 1, childs= {}}
+        craftingSkills[craft][sorting][0] = {name = "All", type = "header", exp = 1, childs= {}}
         numHeaders = 1
         local index = 1
         local headerIndex = 0
@@ -440,20 +426,22 @@ function Artisan_UpdateSkillList()
                     local craftName = GetCraftInfo(i)
                     if strfind(strlower(craftName) or "", strlower(pattern)) then
                         local found = false
-                        for k, v in pairs(craftingSkills[craft]) do
+                        for k, v in pairs(craftingSkills[craft][sorting]) do
                             -- header exists already
                             if v.name == header then
+                                --debug(header.." already exists")
                                 headerIndex = k
                                 found = true
                             end
                         end
                         -- add new header
                         if not found then
+                            --debug("new header "..header)
                             numHeaders = numHeaders + 1
-                            tinsert(craftingSkills[craft][0].childs, header)
-                            craftingSkills[craft][index] = {name = header, type = "header", childs = {}}
-                            if not listContains(collapsedHeaders[craft], header) then
-                                craftingSkills[craft][index].exp = 1
+                            tinsert(craftingSkills[craft][sorting][0].childs, header)
+                            craftingSkills[craft][sorting][index] = {name = header, type = "header", childs = {}}
+                            if not listContains(collapsedHeaders[craft][sorting], header) then
+                                craftingSkills[craft][sorting][index].exp = 1
                             end
                             headerIndex = index
                             index = index + 1
@@ -462,19 +450,19 @@ function Artisan_UpdateSkillList()
                         for j = 1, GetNumCrafts() do
                             local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
                             if strfind(strlower(name) or "", strlower(pattern)) then
-                                if craftingSkills[craft][headerIndex].exp == 1 then
-                                    craftingSkills[craft][index] = {name = "", type = "", num = 0, id = 0}
-                                    craftingSkills[craft][index].name = name
-                                    craftingSkills[craft][index].type = type
-                                    craftingSkills[craft][index].num = num
-                                    craftingSkills[craft][index].exp = exp
-                                    craftingSkills[craft][index].sub = sub
-                                    craftingSkills[craft][index].tp = tp
-                                    craftingSkills[craft][index].lvl = lvl
-                                    craftingSkills[craft][index].id = j
+                                if craftingSkills[craft][sorting][headerIndex].exp == 1 then
+                                    craftingSkills[craft][sorting][index] = {name = "", type = "", num = 0, id = 0}
+                                    craftingSkills[craft][sorting][index].name = name
+                                    craftingSkills[craft][sorting][index].type = type
+                                    craftingSkills[craft][sorting][index].num = num
+                                    craftingSkills[craft][sorting][index].exp = exp
+                                    craftingSkills[craft][sorting][index].sub = sub
+                                    craftingSkills[craft][sorting][index].tp = tp
+                                    craftingSkills[craft][sorting][index].lvl = lvl
+                                    craftingSkills[craft][sorting][index].id = j
                                     index = index + 1
                                 end
-                                tinsert(craftingSkills[craft][headerIndex].childs, name)
+                                tinsert(craftingSkills[craft][sorting][headerIndex].childs, name)
                             end
                         end
                         break
@@ -487,15 +475,15 @@ function Artisan_UpdateSkillList()
         for i = 1, GetNumCrafts() do
             local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
             if name then
-                craftingSkills[craft][index] = {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0}
-                craftingSkills[craft][index].name = name
-                craftingSkills[craft][index].sub = sub
-                craftingSkills[craft][index].type = type
-                craftingSkills[craft][index].num = num
-                craftingSkills[craft][index].exp = exp
-                craftingSkills[craft][index].tp = tp
-                craftingSkills[craft][index].lvl = lvl
-                craftingSkills[craft][index].id = i
+                craftingSkills[craft][sorting][index] = {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0}
+                craftingSkills[craft][sorting][index].name = name
+                craftingSkills[craft][sorting][index].sub = sub
+                craftingSkills[craft][sorting][index].type = type
+                craftingSkills[craft][sorting][index].num = num
+                craftingSkills[craft][sorting][index].exp = exp
+                craftingSkills[craft][sorting][index].tp = tp
+                craftingSkills[craft][sorting][index].lvl = lvl
+                craftingSkills[craft][sorting][index].id = i
                 index = index + 1
             end
         end
@@ -979,7 +967,7 @@ end
 
 function Artisan_GetCraftInfo(index)
     local craft = ArtisanFrame.selectedTabName
-
+    local sorting = ArtisanConfig.sorting
     if not ArtisanFrame.selectedTabName then
         return
     end
@@ -996,14 +984,14 @@ function Artisan_GetCraftInfo(index)
     local trainingPointCost = 0
     local requiredLevel = 0
 
-    if craftingSkills[craft][index] then
-        craftName = craftingSkills[craft][index].name or ""
-        craftType = craftingSkills[craft][index].type or ""
-        numAvailable = craftingSkills[craft][index].num or 0
-        isExpanded = craftingSkills[craft][index].exp or nil
-        craftSubSpellName = craftingSkills[craft][index].sub or ""
-        trainingPointCost = craftingSkills[craft][index].tp or 0
-        requiredLevel = craftingSkills[craft][index].lvl or 0
+    if craftingSkills[craft][sorting][index] then
+        craftName = craftingSkills[craft][sorting][index].name or ""
+        craftType = craftingSkills[craft][sorting][index].type or ""
+        numAvailable = craftingSkills[craft][sorting][index].num or 0
+        isExpanded = craftingSkills[craft][sorting][index].exp or nil
+        craftSubSpellName = craftingSkills[craft][sorting][index].sub or ""
+        trainingPointCost = craftingSkills[craft][sorting][index].tp or 0
+        requiredLevel = craftingSkills[craft][sorting][index].lvl or 0
     end
 
     return craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
@@ -1025,40 +1013,43 @@ function Artisan_CollapseCraftSkillLine(id)
     end
 
     local craft = ArtisanFrame.selectedTabName
-    
+    local sorting = ArtisanConfig.sorting
     if not collapsedHeaders[craft] then
         collapsedHeaders[craft] = {}
     end
-    
-    if craftingSkills[craft][id].type ~= "header" then
+    if not collapsedHeaders[craft][sorting] then
+        collapsedHeaders[craft][sorting] = {}
+    end
+    if craftingSkills[craft][sorting][id].type ~= "header" then
         return
     end
 
     if id == 0 then
         ArtisanFrame.selectedSkill = 0
         -- collapse all
-        for i = 0, table.getn(craftingSkills[craft]) do
-            if craftingSkills[craft][i].type == "header" and not listContains(collapsedHeaders[craft], craftingSkills[craft][i].name) then
-                addToList(collapsedHeaders[craft], craftingSkills[craft][i].name)
+        for i = 0, table.getn(craftingSkills[craft][sorting]) do
+            if craftingSkills[craft][sorting][i].type == "header" and 
+                not listContains(collapsedHeaders[craft][sorting], craftingSkills[craft][sorting][i].name) then
+                addToList(collapsedHeaders[craft][sorting], craftingSkills[craft][sorting][i].name)
             end
         end
         Artisan_UpdateSkillList()
     else
         -- collapse only 1
-        local headerName = craftingSkills[craft][id].name
-        if craftingSkills[craft][id].type == "header"  and not listContains(collapsedHeaders[craft], headerName) then
-            addToList(collapsedHeaders[craft], headerName)
+        local headerName = craftingSkills[craft][sorting][id].name
+        if craftingSkills[craft][sorting][id].type == "header"  and not listContains(collapsedHeaders[craft][sorting], headerName) then
+            addToList(collapsedHeaders[craft][sorting], headerName)
         end
         local skill = ArtisanFrame.selectedSkill
         local skillName = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
-        local offset = getn(craftingSkills[craft][id].childs) or 0
+        local offset = getn(craftingSkills[craft][sorting][id].childs) or 0
         Artisan_UpdateSkillList()
         local first = Artisan_GetFirstCraft()
         if first == 0 then
             skill = 0
         elseif id < ArtisanFrame.selectedSkill then
             skill = ArtisanFrame.selectedSkill - offset
-            if first > skill or listContains(craftingSkills[craft][id].childs, nil, skillName) then
+            if first > skill or listContains(craftingSkills[craft][sorting][id].childs, nil, skillName) then
                 skill = first
             end
         end
@@ -1073,22 +1064,22 @@ function Artisan_ExpandCraftSkillLine(id)
         ArtisanFrame_Update()
         return
     end
-
     local craft = ArtisanFrame.selectedTabName
-    local headerName = craftingSkills[craft][id].name
-    local offset = getn(craftingSkills[craft][id].childs) or 0
+    local sorting = ArtisanConfig.sorting
+    local headerName = craftingSkills[craft][sorting][id].name
+    local offset = getn(craftingSkills[craft][sorting][id].childs) or 0
 
-    if craftingSkills[craft][id].type ~= "header" then
+    if craftingSkills[craft][sorting][id].type ~= "header" then
         return
     end
 
     if id == 0 then
         --expand all
-        for i = 1, table.getn(craftingSkills[craft]) do
-            if craftingSkills[craft][i].type == "header" then
-                headerName = craftingSkills[craft][i].name
-                if listContains(collapsedHeaders[craft], headerName) then
-                    collapsedHeaders[craft][headerName] = nil
+        for i = 1, table.getn(craftingSkills[craft][sorting]) do
+            if craftingSkills[craft][sorting][i].type == "header" then
+                headerName = craftingSkills[craft][sorting][i].name
+                if listContains(collapsedHeaders[craft][sorting], headerName) then
+                    collapsedHeaders[craft][sorting][headerName] = nil
                 end
             end
         end
@@ -1096,8 +1087,8 @@ function Artisan_ExpandCraftSkillLine(id)
         Artisan_SetSelection(Artisan_GetFirstCraft())
     else
         --expand 1
-        if listContains(collapsedHeaders[craft], headerName) then
-            collapsedHeaders[craft][headerName] = nil
+        if listContains(collapsedHeaders[craft][sorting], headerName) then
+            collapsedHeaders[craft][sorting][headerName] = nil
         end
         Artisan_UpdateSkillList()
         if id > ArtisanFrame.selectedSkill then
@@ -1115,7 +1106,7 @@ end
 
 function Artisan_GetItemLink(index)
 	if ArtisanFrame.craft then
-        local originalID = craftingSkills[ArtisanFrame.selectedTabName][index].id
+        local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][index].id
 		return GetCraftItemLink(originalID)
 	else
 		return GetTradeSkillItemLink(index)
@@ -1124,7 +1115,7 @@ end
 
 function Artisan_GetReagentItemLink(index, id)
     if ArtisanFrame.craft then
-        local originalIndex = craftingSkills[ArtisanFrame.selectedTabName][index].id
+        local originalIndex = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][index].id
         return GetCraftReagentItemLink(originalIndex, id)
     else
         return GetTradeSkillReagentItemLink(index, id)
@@ -1136,6 +1127,7 @@ function Artisan_GetFirstCraft()
         return GetFirstTradeSkill()
     end
     local craft = ArtisanFrame.selectedTabName
+    local sorting = ArtisanConfig.sorting
     if not craft then
         return
     end
@@ -1144,8 +1136,8 @@ function Artisan_GetFirstCraft()
         return 1
     end
 
-    for k = 1, table.getn(craftingSkills[craft]) do
-        if craftingSkills[craft][k].type == "header" and craftingSkills[craft][k].exp == 1 then
+    for k = 1, table.getn(craftingSkills[craft][sorting]) do
+        if craftingSkills[craft][sorting][k].type == "header" and craftingSkills[craft][sorting][k].exp == 1 then
             return k + 1
         end
     end
@@ -1158,14 +1150,14 @@ function Artisan_GetNumCrafts()
         return GetNumTradeSkills()
     end
 
-    return getn(craftingSkills[ArtisanFrame.selectedTabName])
+    return getn(craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting])
 end
 
 function Artisan_SelectCraft(id)
     if not ArtisanFrame.craft then
         return SelectTradeSkill(id)
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     SelectCraft(originalID)
 end
 
@@ -1173,7 +1165,7 @@ function Artisan_GetCraftIcon(id)
     if not ArtisanFrame.craft then
         return GetTradeSkillIcon(id)
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     return GetCraftIcon(originalID)
 end
 
@@ -1181,7 +1173,7 @@ function Artisan_GetCraftDescription(id)
     if not ArtisanFrame.craft then
         return nil
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     return GetCraftDescription(originalID)
 end
 
@@ -1189,7 +1181,7 @@ function Artisan_GetCraftNumReagents(id)
     if not ArtisanFrame.craft then
         return GetTradeSkillNumReagents(id)
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     return GetCraftNumReagents(originalID)
 end
 
@@ -1197,7 +1189,7 @@ function Artisan_GetCraftReagentInfo(id, i)
     if not ArtisanFrame.craft then
         return GetTradeSkillReagentInfo(id, i)
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     return GetCraftReagentInfo(originalID, i)
 end
 
@@ -1205,15 +1197,17 @@ function Artisan_GetCraftTools(id)
     if not ArtisanFrame.craft then
         return GetTradeSkillTools(id)
     end
-    local originalID = craftingSkills[ArtisanFrame.selectedTabName][id].id
+    local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][id].id
     return GetCraftSpellFocus(originalID)
 end
 
 function ArtisanEditButton_OnClick()
-    if ArtisanCustomSortingEditor:IsVisible() then
-        ArtisanCustomSortingEditor:Hide()
+    if ArtisanEditor:IsVisible() then
+        ArtisanEditor:Hide()
     else
-        ArtisanCustomSortingEditor:Show()
+        ArtisanEditor:Show()
+        ArtisanEditorLeft_Update()
+        ArtisanEditorRight_Update()
     end
 end
 
@@ -1233,6 +1227,147 @@ function ArtisanSortName_OnClick()
 
 end
 
-function ArtisanUncategorized_OnClick()
+function ArtisanEditorLeftButton_OnClick()
 
+end
+
+function ArtisanEditorRightButton_OnClick()
+
+end
+
+function ArtisanRightButtonUp_OnClick(arg1)
+
+end
+
+function ArtisanRightButtonDown_OnClick()
+    
+end
+
+function ArtisanRightButtonDelete_OnClick()
+    
+end
+
+local uncatList = {}
+local catList = {}
+function ArtisanEditorScrollFrameLeft_OnLoad()
+    for i = 1, 25 do
+        if not uncatList[i] then
+            uncatList[i] = CreateFrame("Button", "ArtisanEditorSkillLeft"..i, ArtisanEditor, "ArtisanEditorLeftButtonTemplate")
+            uncatList[i]:SetPoint("TOPLEFT", ArtisanEditor, 10 , -30 - ((i - 1) * craftSkillHeight))
+        end
+    end
+end
+
+function ArtisanEditorScrollFrameRight_OnLoad()
+    for i = 1, 25 do
+        if not catList[i] then
+            catList[i] = CreateFrame("Button", "ArtisanEditorSkilRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
+            catList[i]:SetPoint("TOPRIGHT", ArtisanEditor, -30 , -30 - ((i - 1) * craftSkillHeight))
+            catList[i]:Hide()
+            
+            catList[i].up = CreateFrame("Button", "ArtisanEditorRightUp"..i, ArtisanEditor, "ArtisanRightButtonUpTemplate")
+            catList[i].up:SetPoint("CENTER", "ArtisanEditorSkilRight"..i, "RIGHT", -55, 0)
+            catList[i].up:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            catList[i].up:Hide()
+
+            catList[i].down = CreateFrame("Button", "ArtisanEditorRightDown"..i, ArtisanEditor, "ArtisanRightButtonDownTemplate")
+            catList[i].down:SetPoint("CENTER", "ArtisanEditorRightUp"..i, "RIGHT", 10, 0)
+            catList[i].down:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            catList[i].down:Hide()
+
+            catList[i].delete = CreateFrame("Button", "ArtisanEditorRightDelete"..i, ArtisanEditor, "ArtisanRightButtonDeleteTemplate")
+            catList[i].delete:SetPoint("CENTER", "ArtisanEditorRightDown"..i, "RIGHT", 10, 0)
+            catList[i].delete:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            catList[i].delete:Hide()
+        end
+    end
+end
+
+local skillsOnly = {}
+function ArtisanEditor_OnShow()
+    if not craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting] then
+        return
+    end
+    for k in pairs(skillsOnly) do
+        skillsOnly[k] = nil
+    end
+    table.setn(skillsOnly,0)
+    for _, v in pairs(craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting]) do
+        if v.type ~= "header" then
+            tinsert(skillsOnly, {v.name, v.type})
+        end
+    end
+    table.sort(skillsOnly, function(a,b) return a[1] < b[1] end)
+    ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
+    ArtisanEditorScrollFrameRight:SetVerticalScroll(0)
+end
+
+function ArtisanEditorLeft_Update()
+    local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameLeft) or 0
+    local numCrafts = getn(skillsOnly)
+    local buttonIndex = 1
+    FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, numCrafts, 25, craftSkillHeight)
+    for i = 1, 25 do
+        local craftIndex = 0
+        craftIndex = i + craftOffset
+        --local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost = Artisan_GetCraftInfo(craftIndex)
+        if craftIndex > 0 and craftIndex <= numCrafts then
+            local craftName, craftType = skillsOnly[craftIndex][1], skillsOnly[craftIndex][2]
+            local craftButton = getglobal("ArtisanEditorSkillLeft"..buttonIndex)
+            local color = TypeColor[craftType]
+            if color then
+                craftButton:SetTextColor(color.r, color.g, color.b)
+                craftButton.r = color.r
+                craftButton.g = color.g
+                craftButton.b = color.b
+            end
+            craftButton:SetID(craftIndex)
+            craftButton:Show()
+            craftButton:SetNormalTexture("")
+            getglobal("ArtisanEditorSkillLeft"..buttonIndex.."Highlight"):SetTexture("")
+            craftButton:SetText(craftName)
+        else
+            getglobal("ArtisanEditorSkillLeft"..i):Hide()
+        end
+        buttonIndex = buttonIndex + 1
+    end
+end
+
+function ArtisanEditorRight_Update()
+    
+end
+
+function ArtisanEditorAdd_OnClick()
+    StaticPopup_Show("ARTISAN_NEW_CATEGORY")
+end
+
+StaticPopupDialogs["ARTISAN_NEW_CATEGORY"] = {
+    text = "Name the new category",
+    button1 = TEXT(OKAY),
+    button2 = TEXT(CANCEL),
+    hasEditBox = 1,
+    OnShow = function()
+        getglobal(this:GetName().."EditBox"):SetFocus()
+        getglobal(this:GetName().."EditBox"):SetText("")
+        getglobal(this:GetName() .. "EditBox"):SetScript("OnEnterPressed", function()
+            StaticPopup1Button1:Click()
+        end)
+        getglobal(this:GetName() .. "EditBox"):SetScript("OnEscapePressed", function()
+            getglobal(this:GetParent():GetName() .. "EditBox"):SetText("")
+            StaticPopup1Button2:Click()
+        end)
+    end,
+    OnAccept = function()
+        ArtisanEditor_AddCategory(getglobal(this:GetParent():GetName() .. "EditBox"):GetText())
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+function ArtisanEditor_AddCategory(categoryName)
+    if categoryName ~= "" then
+        
+        ArtisanEditorRight_Update()
+    end
 end
