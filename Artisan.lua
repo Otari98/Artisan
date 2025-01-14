@@ -1285,11 +1285,18 @@ end
 function ArtisanSortName_OnClick()
 
 end
+
 local skillsOnly = {}
 function ArtisanEditorLeftButton_OnClick()
     if ArtisanEditor.currentHeader then
-        tinsert(customCategories[ArtisanFrame.selectedTabName], ArtisanEditor.currentHeader + 1, {name = this:GetText(), type = this.type})
-        tremove(skillsOnly[ArtisanFrame.selectedTabName], this:GetID())
+        local headerIndex = ArtisanEditor.currentHeader
+        local tabName = ArtisanFrame.selectedTabName
+        local name = this:GetText()
+        if this.type ~= "header" then
+            tinsert(customCategories[tabName], headerIndex + 1, {name = name, type = this.type})
+            tinsert(customCategories[tabName][headerIndex].childs, name)
+        end
+        tremove(skillsOnly[tabName], this:GetID())
         ArtisanEditorLeft_Update()
         ArtisanEditorRight_Update()
     end
@@ -1314,10 +1321,19 @@ function ArtisanRightButtonDelete_OnClick()
     local tabName = ArtisanFrame.selectedTabName
     local button = getglobal("ArtisanEditorSkilRight"..this:GetID())
     if button.type ~= "header" then
-        tremove(customCategories[tabName], this:GetID())
-        tinsert(skillsOnly[tabName], {button:GetText(), button.type})
-        table.sort(skillsOnly[tabName], function(a,b) return a[1] < b[1] end)
+        tinsert(skillsOnly[tabName], {button:GetText(), button.type}) 
+    else
+        for _, v in pairs(customCategories[tabName][this:GetID()].childs) do
+            for k2, v2 in pairs(customCategories[tabName]) do
+                if v2.name == v then
+                    tremove(customCategories[tabName], k2)
+                    tinsert(skillsOnly[tabName], {v2.name, v2.type})
+                end
+            end
+        end
     end
+    table.sort(skillsOnly[tabName], function(a,b) return a[1] < b[1] end)
+    tremove(customCategories[tabName], this:GetID())
     ArtisanEditorLeft_Update()
     ArtisanEditorRight_Update()
 end
@@ -1460,7 +1476,7 @@ function ArtisanEditorRight_Update()
                 else
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
                 end
-                getglobal("ArtisanFrameSkill"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+                getglobal("ArtisanEditorSkilRight"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
                 craftButton:UnlockHighlight()
             end
         else
