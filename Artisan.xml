@@ -37,7 +37,7 @@
 			<OnEnter>
 				GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT");
 				if ArtisanFrame.craft then
-					local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+					local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][ArtisanFrame.selectedSkill].id
 					GameTooltip:SetCraftItem(originalID, this:GetID());
 				else
 					GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill, this:GetID());
@@ -820,7 +820,7 @@
 										if ( ArtisanFrame.selectedSkill ~= 0 ) then
 											GameTooltip:SetOwner(this, "ANCHOR_RIGHT");
 											if ArtisanFrame.craft then
-												local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+												local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][ArtisanFrame.selectedSkill].id
 												GameTooltip:SetCraftSpell(originalID);
 											else
 												GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill);
@@ -953,7 +953,7 @@
 				<Scripts>
 					<OnClick>
 						if ArtisanFrame.craft then
-							local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+							local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanConfig.sorting][ArtisanFrame.selectedSkill].id
 							DoCraft(originalID)
 						else
 							DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrameInputBox:GetNumber());

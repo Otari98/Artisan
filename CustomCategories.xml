@@ -14,6 +14,12 @@
 			<OnClick>
 				ArtisanEditorRightButton_OnClick(arg1)
 			</OnClick>
+            <OnShow>
+                getglobal("ArtisanEditorRightDelete"..this:GetID()):Show()
+            </OnShow>
+            <OnHide>
+                getglobal("ArtisanEditorRightDelete"..this:GetID()):Hide()
+            </OnHide>
 		</Scripts>
 	</Button>
     <Button name="ArtisanRightButtonUpTemplate" inherits="UIPanelScrollUpButtonTemplate" virtual="true">
@@ -45,7 +51,7 @@
                 <Offset x="0" y="25"/>
             </Anchor>
         </Anchors>
-        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true" >
             <BackgroundInsets>
                 <AbsInset left="11" right="12" top="12" bottom="11"/>
             </BackgroundInsets>
@@ -64,14 +70,14 @@
                         <Offset x="15" y="0"/>
                     </Anchor>
                 </Anchors>
-                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
                     <BackgroundInsets>
                         <AbsInset left="0" right="0" top="0" bottom="0"/>
                     </BackgroundInsets>
                     <TileSize>
                         <AbsValue val="32"/>
                     </TileSize>
-                </Backdrop>
+                </Backdrop> -->
                 <Scripts>
                     <OnLoad>
                         ArtisanEditorScrollFrameLeft_OnLoad()
@@ -88,14 +94,14 @@
                         <Offset x="30" y="0"/>
                     </Anchor>
                 </Anchors>
-                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
                     <BackgroundInsets>
                         <AbsInset left="0" right="0" top="0" bottom="0"/>
                     </BackgroundInsets>
                     <TileSize>
                         <AbsValue val="32"/>
                     </TileSize>
-                </Backdrop>
+                </Backdrop> -->
                 <Scripts>
                     <OnLoad>
                         ArtisanEditorScrollFrameRight_OnLoad()
