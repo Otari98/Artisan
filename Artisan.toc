@@ -1,8 +1,8 @@
 ## Interface: 11200
 ## Title: Artisan |cffc79c6e-Spit-|r
 ## Author: Otari98
-## Version: 1.0
+## Version: 1.1
 ## Notes: Crafting UI improvements
-## SavedVariablesPerCharacter: craftingSkills, collapsedHeaders, ArtisanConfig
+## SavedVariablesPerCharacter: ARTISAN_SKILLS, ARTISAN_COLLAPSED, ARTISAN_CUSTOM, ARTISAN_UNCATEGORIZED, ARTISAN_CONFIG
 Artisan.xml
 CustomCategories.xml
