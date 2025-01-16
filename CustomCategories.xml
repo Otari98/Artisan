@@ -207,6 +207,9 @@
             <OnShow>
                 ArtisanEditor_OnShow()
             </OnShow>
+            <OnHide>
+                ArtisanEditorSearchBox:SetText("")
+            </OnHide>
         </Scripts>
     </Frame>
 </Ui>

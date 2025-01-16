@@ -3,6 +3,7 @@ local craftSkillHeight = 16
 local craftsDisplayed = 12
 local maxTabs = 7
 local searchResults = {}
+local editorSearchResults = {}
 local playerProfessions = {}
 
 ARTISAN_SKILLS = ARTISAN_SKILLS or {}
@@ -420,6 +421,12 @@ end
 
 local function C_GetNumCrafts()
     if not ArtisanFrame.craft then
+        for i = 1, GetNumTradeSkills() do
+            local _, type = GetTradeSkillInfo(i)
+            if type == "header" then
+                ExpandTradeSkillSubClass(i)
+            end
+        end
         return GetNumTradeSkills()
     else
         return GetNumCrafts()
@@ -472,14 +479,12 @@ function Artisan_UpdateSkillList()
                             for k, v in pairs(ARTISAN_SKILLS[craft][sorting]) do
                                 -- header exists already
                                 if v.name == header then
-                                    --debug(header.." already exists")
                                     headerIndex = k
                                     found = true
                                 end
                             end
                             -- add new header
                             if not found then
-                                --debug("new header "..header)
                                 numHeaders = numHeaders + 1
                                 tinsert(ARTISAN_SKILLS[craft][sorting][0].childs, header)
                                 ARTISAN_SKILLS[craft][sorting][index] = {name = header, type = "header", childs = {}}
@@ -813,7 +818,7 @@ function Artisan_SetSelection(id)
     if color then
         ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
     end
-
+    craftName = gsub(craftName or "", "  %(Rank %d+%)", "")
     ArtisanSkillName:SetText(craftName)
     ArtisanSkillIcon:SetNormalTexture(Artisan_GetCraftIcon(id))
     ArtisanSkillCooldown:SetText("")
@@ -1007,7 +1012,12 @@ function ArtisanSideTab_OnCLick()
             tab:SetChecked(nil)
         end
     end
-
+    if ArtisanEditor:IsVisible() then
+        ArtisanEditor:Hide()
+        ArtisanEditor:Show()
+        ArtisanEditor_Search()
+        ArtisanEditorRight_Update()
+    end
     ArtisanListScrollFrame:SetVerticalScroll(0)
     ArtisanDetailScrollFrame:SetVerticalScroll(0)
     ArtisanFrameSearchBox:SetText("")
@@ -1343,7 +1353,8 @@ function ArtisanEditButton_OnClick()
         ArtisanEditor:Hide()
     else
         ArtisanEditor:Show()
-        ArtisanEditorLeft_Update()
+        Artisan_UpdateSkillList()
+        ArtisanEditor_Search()
         ArtisanEditorRight_Update()
     end
 end
@@ -1357,6 +1368,9 @@ function ArtisanSortDefault_OnClick()
         Artisan_SetSelection(Artisan_GetFirstCraft())
         ArtisanFrame_Update()
         ArtisanFrameEditButton:Hide()
+        if ArtisanEditor:IsVisible() then
+            ArtisanEditor:Hide()
+        end
     else
         this:SetChecked(1)
     end
@@ -1387,7 +1401,7 @@ function ArtisanEditorLeftButton_OnClick()
             tinsert(ARTISAN_CUSTOM[tabName][headerIndex].childs, name)
         end
         tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
-        ArtisanEditorLeft_Update()
+        ArtisanEditor_Search()
         ArtisanEditorRight_Update()
     end
 end
@@ -1427,10 +1441,13 @@ function ArtisanRightButtonDelete_OnClick()
                 end
             end
         end
+        if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == this:GetID() then
+            ArtisanEditor.currentHeader = nil
+        end
     end
     tremove(ARTISAN_CUSTOM[tabName], this:GetID())
     table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
-    ArtisanEditorLeft_Update()
+    ArtisanEditor_Search()
     ArtisanEditorRight_Update()
 end
 
@@ -1510,15 +1527,52 @@ function ArtisanEditor_OnShow()
     ArtisanEditorScrollFrameRight:SetVerticalScroll(0)
 end
 
+function ArtisanEditor_Search()
+	editorSearchResults = {}
+	local query = strlower(ArtisanEditorSearchBox:GetText())
+    local tab = ArtisanFrame.selectedTabName
+
+    if query == "" then
+        ArtisanEditorLeft_Update()
+        return
+    end
+
+    local numSkills = getn(ARTISAN_UNCATEGORIZED[tab])
+
+    for i = 1, numSkills do
+        local skillName = ARTISAN_UNCATEGORIZED[tab][i].name
+
+        if skillName then
+            if strfind(strlower(skillName), query, 1, true) then
+                tinsert(editorSearchResults, i)
+            end
+        end
+    end
+    ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
+	ArtisanEditorLeft_Update()
+end
+
 function ArtisanEditorLeft_Update()
     local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameLeft) or 0
     local tabName = ArtisanFrame.selectedTabName
     local numCrafts = getn(ARTISAN_UNCATEGORIZED[tabName])
     local buttonIndex = 1
-    FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, numCrafts, 25, craftSkillHeight)
+    local results = getn(editorSearchResults)
+    local craftsToUpdate = results == 0 and numCrafts or results
+    FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, craftsToUpdate, 25, craftSkillHeight)
     for i = 1, 25 do
         local craftIndex = 0
-        craftIndex = i + craftOffset
+        if ArtisanEditorSearchBox:GetText() ~= "" then
+            if results > 0 then
+                if editorSearchResults[i + craftOffset] then
+                    craftIndex = editorSearchResults[i + craftOffset]
+                end
+            else
+                craftIndex = -1
+            end
+        else
+            craftIndex = i + craftOffset
+        end
         if craftIndex > 0 and craftIndex <= numCrafts then
             local craftName = ARTISAN_UNCATEGORIZED[tabName][craftIndex].name
             local craftType = ARTISAN_UNCATEGORIZED[tabName][craftIndex].type
@@ -1644,8 +1698,4 @@ function ArtisanEditor_AddCategory(categoryName)
         end
         ArtisanEditorRight_Update()
     end
-end
-
-function ArtisanEditor_Search(text)
-
 end
