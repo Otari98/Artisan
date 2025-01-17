@@ -3,6 +3,6 @@
 ## Author: Otari98
 ## Version: 1.1
 ## Notes: Crafting UI improvements
-## SavedVariablesPerCharacter: ARTISAN_SKILLS, ARTISAN_COLLAPSED, ARTISAN_CUSTOM, ARTISAN_UNCATEGORIZED, ARTISAN_CONFIG
+## SavedVariablesPerCharacter: ARTISAN_SKILLS, ARTISAN_CUSTOM, ARTISAN_UNCATEGORIZED, ARTISAN_CONFIG
 Artisan.xml
 CustomCategories.xml

@@ -10,16 +10,21 @@
 		</Scripts>
 	</Button>
 	<Button name="ArtisanEditorRightButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+        <Layers>
+			<Layer level="BACKGROUND">
+				<Texture name="$parentBackground" hidden="true">
+					<Size x="293" y="16"/> 
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT"/>
+					</Anchors>
+					<Color r="1" g="0" b="0" a="0.15"/>
+				</Texture>
+            </Layer>
+        </Layers>
 		<Scripts>
 			<OnClick>
 				ArtisanEditorRightButton_OnClick(arg1)
 			</OnClick>
-            <OnShow>
-                getglobal("ArtisanEditorRightDelete"..this:GetID()):Show()
-            </OnShow>
-            <OnHide>
-                getglobal("ArtisanEditorRightDelete"..this:GetID()):Hide()
-            </OnHide>
 		</Scripts>
 	</Button>
     <Button name="ArtisanRightButtonUpTemplate" inherits="UIPanelScrollUpButtonTemplate" virtual="true">

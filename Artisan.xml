@@ -1168,6 +1168,7 @@
 				this.selectedTabName = nil
 				CloseCraft()
 				CloseTradeSkill()
+				ArtisanEditor:Hide()
 				PlaySound("igCharacterInfoClose");
 			</OnHide>
 			<OnMouseWheel>

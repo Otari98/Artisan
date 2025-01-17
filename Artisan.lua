@@ -5,9 +5,9 @@ local maxTabs = 7
 local searchResults = {}
 local editorSearchResults = {}
 local playerProfessions = {}
+local collapsedHeaders = {}
 
 ARTISAN_SKILLS = ARTISAN_SKILLS or {}
-ARTISAN_COLLAPSED = ARTISAN_COLLAPSED or {}
 ARTISAN_CUSTOM = ARTISAN_CUSTOM or {}
 ARTISAN_UNCATEGORIZED = ARTISAN_UNCATEGORIZED or {}
 ARTISAN_CONFIG = ARTISAN_CONFIG or {}
@@ -93,7 +93,7 @@ function printf(...)
     DEFAULT_CHAT_FRAME:AddMessage(GREY.."["..GetTime().."]|r "..WHITE..msg.."|r")
 end
 
-local debugging = true
+local debugging = false
 local function debug(a)
     if not debugging then
         return
@@ -150,6 +150,10 @@ local function getkey(list, value)
             return key
         end
     end
+end
+
+local function strtrim(s)
+	return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
 end
 
 function ArtisanFrame_Search()
@@ -250,10 +254,10 @@ function ArtisanFrame_OnEvent()
     elseif event == "UNIT_PET_TRAINING_POINTS" then
 		Artisan_UpdateTrainingPoints()
     elseif event == "TRADE_SKILL_UPDATE" then
-        if (this.tick or 0.01) > GetTime() then
+        if (this.tick or 0.1) > GetTime() then
             return
         else
-            this.tick = GetTime() + 0.01
+            this.tick = GetTime() + 0.1
         end
         Artisan_SetupSideTabs()
         if ARTISAN_CONFIG.sorting == "default" then
@@ -283,10 +287,10 @@ function ArtisanFrame_OnEvent()
         end
 		ArtisanFrame_Update()
     elseif event == "CRAFT_UPDATE" then
-        if (this.tick or 0.01) > GetTime() then
+        if (this.tick or 0.1) > GetTime() then
             return
         else
-            this.tick = GetTime() + 0.01
+            this.tick = GetTime() + 0.1
         end
         Artisan_SetupSideTabs()
         Artisan_UpdateSkillList()
@@ -453,14 +457,14 @@ function Artisan_UpdateSkillList()
 
     ARTISAN_SKILLS[craft][sorting] = {}
     
-    if not ARTISAN_COLLAPSED then
-        ARTISAN_COLLAPSED = {}
+    if not collapsedHeaders then
+        collapsedHeaders = {}
     end
-    if not ARTISAN_COLLAPSED[craft] then
-        ARTISAN_COLLAPSED[craft] = {}
+    if not collapsedHeaders[craft] then
+        collapsedHeaders[craft] = {}
     end
-    if not ARTISAN_COLLAPSED[craft][sorting] then
-        ARTISAN_COLLAPSED[craft][sorting] = {}
+    if not collapsedHeaders[craft][sorting] then
+        collapsedHeaders[craft][sorting] = {}
     end
 
     local numHeaders = 0
@@ -488,7 +492,7 @@ function Artisan_UpdateSkillList()
                                 numHeaders = numHeaders + 1
                                 tinsert(ARTISAN_SKILLS[craft][sorting][0].childs, header)
                                 ARTISAN_SKILLS[craft][sorting][index] = {name = header, type = "header", childs = {}}
-                                if not listContains(ARTISAN_COLLAPSED[craft][sorting], header) then
+                                if not listContains(collapsedHeaders[craft][sorting], header) then
                                     ARTISAN_SKILLS[craft][sorting][index].exp = 1
                                 end
                                 headerIndex = index
@@ -550,7 +554,7 @@ function Artisan_UpdateSkillList()
             ArtisanEditor_OnShow()
         end
         if next(ARTISAN_UNCATEGORIZED[craft]) then
-            local isExpanded = not listContains(ARTISAN_COLLAPSED[craft][sorting], "Uncategorized") and 1 or nil
+            local isExpanded = not listContains(collapsedHeaders[craft][sorting], "Uncategorized") and 1 or nil
             local unc = {name = "Uncategorized", type = "header", exp = isExpanded, childs= {}}
             tinsert(ARTISAN_SKILLS[craft][sorting], unc)
             local uncatHeaderIndex = getkey(ARTISAN_SKILLS[craft][sorting], unc)
@@ -567,7 +571,7 @@ function Artisan_UpdateSkillList()
             if ARTISAN_SKILLS[craft][sorting][i].type == "header" then
                 numHeaders = numHeaders + 1
                 tinsert(ARTISAN_SKILLS[craft][sorting][0].childs, ARTISAN_SKILLS[craft][sorting][i].name)
-                if not listContains(ARTISAN_COLLAPSED[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name) then
+                if not listContains(collapsedHeaders[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name) then
                     ARTISAN_SKILLS[craft][sorting][i].exp = 1
                 else
                     ARTISAN_SKILLS[craft][sorting][i].exp = nil
@@ -1119,11 +1123,11 @@ function Artisan_CollapseCraftSkillLine(id)
     end
     local craft = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting
-    if not ARTISAN_COLLAPSED[craft] then
-        ARTISAN_COLLAPSED[craft] = {}
+    if not collapsedHeaders[craft] then
+        collapsedHeaders[craft] = {}
     end
-    if not ARTISAN_COLLAPSED[craft][sorting] then
-        ARTISAN_COLLAPSED[craft][sorting] = {}
+    if not collapsedHeaders[craft][sorting] then
+        collapsedHeaders[craft][sorting] = {}
     end
     if ARTISAN_SKILLS[craft][sorting][id].type ~= "header" then
         return
@@ -1134,16 +1138,16 @@ function Artisan_CollapseCraftSkillLine(id)
         -- collapse all
         for i = 0, getn(ARTISAN_SKILLS[craft][sorting]) do
             if ARTISAN_SKILLS[craft][sorting][i].type == "header" and 
-                not listContains(ARTISAN_COLLAPSED[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name) then
-                addToList(ARTISAN_COLLAPSED[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name)
+                not listContains(collapsedHeaders[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name) then
+                addToList(collapsedHeaders[craft][sorting], ARTISAN_SKILLS[craft][sorting][i].name)
             end
         end
         Artisan_UpdateSkillList()
     else
         -- collapse only 1
         local headerName = ARTISAN_SKILLS[craft][sorting][id].name
-        if not listContains(ARTISAN_COLLAPSED[craft][sorting], headerName) then
-            addToList(ARTISAN_COLLAPSED[craft][sorting], headerName)
+        if not listContains(collapsedHeaders[craft][sorting], headerName) then
+            addToList(collapsedHeaders[craft][sorting], headerName)
         end
         local skill = ArtisanFrame.selectedSkill
         local skillName = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
@@ -1183,8 +1187,8 @@ function Artisan_ExpandCraftSkillLine(id)
         for i = 1, getn(ARTISAN_SKILLS[craft][sorting]) do
             if ARTISAN_SKILLS[craft][sorting][i].type == "header" then
                 headerName = ARTISAN_SKILLS[craft][sorting][i].name
-                if listContains(ARTISAN_COLLAPSED[craft][sorting], headerName) then
-                    ARTISAN_COLLAPSED[craft][sorting][headerName] = nil
+                if listContains(collapsedHeaders[craft][sorting], headerName) then
+                    collapsedHeaders[craft][sorting][headerName] = nil
                 end
             end
         end
@@ -1192,8 +1196,8 @@ function Artisan_ExpandCraftSkillLine(id)
         Artisan_SetSelection(Artisan_GetFirstCraft())
     else
         --expand 1
-        if listContains(ARTISAN_COLLAPSED[craft][sorting], headerName) then
-            ARTISAN_COLLAPSED[craft][sorting][headerName] = nil
+        if listContains(collapsedHeaders[craft][sorting], headerName) then
+            collapsedHeaders[craft][sorting][headerName] = nil
         end
         Artisan_UpdateSkillList()
         if id > ArtisanFrame.selectedSkill then
@@ -1284,8 +1288,10 @@ function Artisan_SelectCraft(id)
             return SelectTradeSkill(originalID)
         end
     end
-    local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][id].id
-    SelectCraft(originalID)
+    if ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][id] then
+        local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][id].id
+        SelectCraft(originalID)
+    end
 end
 
 function Artisan_GetCraftIcon(id)
@@ -1393,14 +1399,20 @@ end
 
 function ArtisanEditorLeftButton_OnClick()
     if ArtisanEditor.currentHeader then
-        local headerIndex = ArtisanEditor.currentHeader
+        local parentIndex = ArtisanEditor.currentHeader
         local tabName = ArtisanFrame.selectedTabName
         local name, type, num, sub, tp, lvl, id = this.name, this.type, this.num, this.sub, this.tp, this.lvl, this.id
         if this.type ~= "header" then
-            tinsert(ARTISAN_CUSTOM[tabName], headerIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = headerIndex})
-            tinsert(ARTISAN_CUSTOM[tabName][headerIndex].childs, name)
+            tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
+            tinsert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
         end
         tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
+        -- increment parent index for skills that belong to other headers
+        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+            if v.parent and v.parent > parentIndex then
+                v.parent = v.parent + 1
+            end
+        end
         ArtisanEditor_Search()
         ArtisanEditorRight_Update()
     end
@@ -1409,43 +1421,225 @@ end
 function ArtisanEditorRightButton_OnClick()
     if this.type == "header" then
         ArtisanEditor.currentHeader = this:GetID()
+    else
+        ArtisanEditor.currentHeader = this.parent
     end
     ArtisanEditorRight_Update()
 end
 
 function ArtisanRightButtonUp_OnClick()
+    local thisButton = getglobal("ArtisanEditorSkillRight"..this:GetID())
+    local prevButton = getglobal("ArtisanEditorSkillRight"..this:GetID() - 1)
+    local craftIndex = thisButton:GetID()
+    local tabName = ArtisanFrame.selectedTabName
+    local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
 
+    if (craftIndex and craftIndex > 1) then
+        if thisButton.type ~= "header" then
+            local prevIndex = craftIndex - 1
+
+            if prevButton.type == "header" and prevIndex == 1 then
+                return
+            end
+
+            local temp = ARTISAN_CUSTOM[tabName][craftIndex]
+            ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][prevIndex]
+            ARTISAN_CUSTOM[tabName][prevIndex] = temp
+
+            if prevButton.type ~= "header" then
+                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    end
+                end
+            else
+                local prevParentIndex = ARTISAN_CUSTOM[tabName][craftIndex - 2].parent
+                ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
+                ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent then
+                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex - 1 then
+                            ARTISAN_CUSTOM[tabName][i].parent = craftIndex
+                        end
+                    end
+                end
+
+                ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
+                ARTISAN_CUSTOM[tabName][prevParentIndex].childs = {}
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent then
+                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
+                            tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        elseif ARTISAN_CUSTOM[tabName][i].parent == prevParentIndex then
+                            tinsert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        end
+                    end
+                end
+            end
+        else
+            local headerAbove
+            if ARTISAN_CUSTOM[tabName][craftIndex - 1].type ~= "header" then
+                headerAbove = ARTISAN_CUSTOM[tabName][craftIndex - 1].parent
+            else
+                headerAbove = craftIndex - 1
+            end
+            local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
+            local newParent = getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 2
+            local temp = {}
+            for i = offset, craftIndex, -1 do
+                tinsert(temp, ARTISAN_CUSTOM[tabName][i])
+                tremove(ARTISAN_CUSTOM[tabName], i)
+            end
+            for i = 1, getn(temp) do
+                tinsert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
+            end
+            -- FIX THIS
+            for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+                if v.parent then
+                    if v.parent == headerAbove then
+                        v.parent = newParent
+                    elseif v.parent == craftIndex then
+                        v.parent = headerAbove
+                    end
+                end
+            end
+        end
+        ArtisanEditorRight_Update()
+    end
 end
 
 function ArtisanRightButtonDown_OnClick()
+    local thisButton = getglobal("ArtisanEditorSkillRight"..this:GetID())
+    local nextButton = getglobal("ArtisanEditorSkillRight"..this:GetID() + 1)
+    local craftIndex = thisButton:GetID()
+    local tabName = ArtisanFrame.selectedTabName
+    local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
+    local numSkills = getn(ARTISAN_CUSTOM[tabName])
 
+    if (craftIndex and craftIndex < numSkills) then
+        if thisButton.type ~= "header" then
+            local nextIndex = craftIndex + 1
+            local temp = ARTISAN_CUSTOM[tabName][craftIndex]
+            ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][nextIndex]
+            ARTISAN_CUSTOM[tabName][nextIndex] = temp
+
+            if nextButton.type ~= "header" then
+                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    end
+                end
+            else
+                ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
+                ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent then
+                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex + 1 then
+                            ARTISAN_CUSTOM[tabName][i].parent = craftIndex
+                        end
+                    end
+                end
+
+                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+                ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
+                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                    if ARTISAN_CUSTOM[tabName][i].parent then
+                        if ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                            tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        elseif ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
+                            tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        end
+                    end
+                end
+            end
+        else
+            local headerBelow
+            if ARTISAN_CUSTOM[tabName][craftIndex + 1].type ~= "header" then
+                headerBelow = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
+            else
+                headerBelow = craftIndex + 1
+            end
+            if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
+                return
+            end
+            local pos = headerBelow + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
+            local newParent = craftIndex + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
+            local x = 0
+            for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+                tinsert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
+                x = x + 1
+            end
+            x = 0
+            for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+                tremove(ARTISAN_CUSTOM[tabName], i - x)
+                x = x + 1
+            end
+            for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+                if v.parent then
+                    if v.parent == craftIndex then
+                        v.parent = newParent
+                    elseif v.parent == headerBelow then
+                        v.parent = craftIndex
+                    end
+                end
+            end
+        end
+        ArtisanEditorRight_Update()
+    end
 end
 
 function ArtisanRightButtonDelete_OnClick()
     local tabName = ArtisanFrame.selectedTabName
-    local button = getglobal("ArtisanEditorSkilRight"..this:GetID())
-    local name, type, num, sub, tp, lvl, id, parent = button.name, button.type, button.num, button.sub, button.tp, button.lvl, button.id, button.parent
+    local button = getglobal("ArtisanEditorSkillRight"..this:GetID())
+    local craftIndex = button:GetID()
+    local name, type, num, sub, tp, lvl, id, parentIndex = button.name, button.type, button.num, button.sub, button.tp, button.lvl, button.id, button.parent
     if button.type ~= "header" then
+        -- move this skill to the left table
         tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
-        for k, v in pairs(ARTISAN_CUSTOM[tabName][parent].childs) do
+        -- remove this skill from parents header childs
+        for k, v in pairs(ARTISAN_CUSTOM[tabName][parentIndex].childs) do
             if v == name then
-                tremove(ARTISAN_CUSTOM[tabName][parent].childs, k)
+                tremove(ARTISAN_CUSTOM[tabName][parentIndex].childs, k)
+            end
+        end
+        -- decrement parent index for skills below if they belong to other headers
+        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+            if v.parent and v.parent > parentIndex then
+                v.parent = v.parent - 1
             end
         end
     else
-        for _, v in pairs(ARTISAN_CUSTOM[tabName][this:GetID()].childs) do
-            for k2, v2 in pairs(ARTISAN_CUSTOM[tabName]) do
-                if v2.name == v then
-                    tremove(ARTISAN_CUSTOM[tabName], k2)
+        -- if we delete header
+        local offset = getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
+        -- copy childs to left list
+        for _, v in pairs(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+            for _, v2 in pairs(ARTISAN_CUSTOM[tabName]) do
+                if v2.name == v and not listContains(ARTISAN_UNCATEGORIZED[tabName],nil,{name = v2.name, type = v2.type, num = v2.num, sub = v2.sub, tp = v2.tp, lvl = v2.lvl, id = v2.id}) then
                     tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = v2.name, type = v2.type, num = v2.num, sub = v2.sub, tp = v2.tp, lvl = v2.lvl, id = v2.id})
+                    break
                 end
             end
         end
-        if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == this:GetID() then
+        -- remove childs from right list
+        for i = getn(ARTISAN_CUSTOM[tabName]), 1, -1  do
+            if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
+                tremove(ARTISAN_CUSTOM[tabName], i)
+            end
+        end
+        -- deselect
+        if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == craftIndex then
             ArtisanEditor.currentHeader = nil
         end
+        -- decrement parent index for skills below by the number of childs + 1
+        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+            if v.parent and v.parent > craftIndex then
+                v.parent = v.parent - offset - 1
+            end
+        end
     end
-    tremove(ARTISAN_CUSTOM[tabName], this:GetID())
+    tremove(ARTISAN_CUSTOM[tabName], craftIndex)
     table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
     ArtisanEditor_Search()
     ArtisanEditorRight_Update()
@@ -1465,27 +1659,37 @@ end
 function ArtisanEditorScrollFrameRight_OnLoad()
     for i = 1, 25 do
         if not listRight[i] then
-            listRight[i] = CreateFrame("Button", "ArtisanEditorSkilRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
+            listRight[i] = CreateFrame("Button", "ArtisanEditorSkillRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
             listRight[i]:SetPoint("TOPRIGHT", ArtisanEditor, -30 , -30 - ((i - 1) * craftSkillHeight))
-            listRight[i]:Hide()
+            getglobal("ArtisanEditorSkillRight"..i.."Text"):SetWidth(210)
             
             listRight[i].up = CreateFrame("Button", "ArtisanEditorRightUp"..i, ArtisanEditor, "ArtisanRightButtonUpTemplate")
-            listRight[i].up:SetPoint("CENTER", "ArtisanEditorSkilRight"..i, "RIGHT", -55, 0)
-            listRight[i].up:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            listRight[i].up:SetPoint("CENTER", "ArtisanEditorSkillRight"..i, "RIGHT", -52, 0)
+            listRight[i].up:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].up:SetID(i)
-            listRight[i].up:Hide()
 
             listRight[i].down = CreateFrame("Button", "ArtisanEditorRightDown"..i, ArtisanEditor, "ArtisanRightButtonDownTemplate")
-            listRight[i].down:SetPoint("CENTER", "ArtisanEditorRightUp"..i, "RIGHT", 10, 0)
-            listRight[i].down:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            listRight[i].down:SetPoint("RIGHT", "ArtisanEditorRightUp"..i, "RIGHT", 16, 0)
+            listRight[i].down:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].down:SetID(i)
-            listRight[i].down:Hide()
 
             listRight[i].delete = CreateFrame("Button", "ArtisanEditorRightDelete"..i, ArtisanEditor, "ArtisanRightButtonDeleteTemplate")
-            listRight[i].delete:SetPoint("CENTER", "ArtisanEditorRightDown"..i, "RIGHT", 10, 0)
-            listRight[i].delete:SetFrameLevel(getglobal("ArtisanEditorSkilRight"..i):GetFrameLevel() + 1)
+            listRight[i].delete:SetPoint("RIGHT", "ArtisanEditorRightDown"..i, "RIGHT", 22, 0)
+            listRight[i].delete:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].delete:SetID(i)
-            listRight[i].delete:Hide()
+
+            local function addHighlight(button)
+                local parentButton = getglobal("ArtisanEditorSkillRight".. button:GetID())
+                button:SetScript("OnEnter", function()
+                    parentButton:LockHighlight()
+                end)
+                button:SetScript("OnLeave", function()
+                    parentButton:UnlockHighlight()
+                end)
+            end
+            -- addHighlight(listRight[i].up)
+            -- addHighlight(listRight[i].down)
+            addHighlight(listRight[i].delete)
         end
     end
 end
@@ -1623,7 +1827,7 @@ function ArtisanEditorRight_Update()
             local trainingPointCost = ARTISAN_CUSTOM[tabName][craftIndex].tp
             local requiredLevel = ARTISAN_CUSTOM[tabName][craftIndex].lvl
             local originalID = ARTISAN_CUSTOM[tabName][craftIndex].id
-            local craftButton = getglobal("ArtisanEditorSkilRight"..buttonIndex)
+            local craftButton = getglobal("ArtisanEditorSkillRight"..buttonIndex)
             craftButton.name = craftName
             craftButton.type = craftType
             craftButton.num = numAvailable
@@ -1640,19 +1844,31 @@ function ArtisanEditorRight_Update()
             craftButton:SetText(craftName)
             if craftType ~= "header" then
                 craftButton:SetNormalTexture("")
-                getglobal("ArtisanEditorSkilRight"..buttonIndex.."Highlight"):SetTexture("")
+                getglobal("ArtisanEditorSkillRight"..buttonIndex.."Highlight"):SetTexture("")
+                if craftButton.parent and craftButton.parent == ArtisanEditor.currentHeader then
+                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Show()
+                else
+                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Hide()
+                end
             else
                 if ArtisanEditor.currentHeader == craftIndex then
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Show()
                 else
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Hide()
                 end
-                getglobal("ArtisanEditorSkilRight"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
-                craftButton:UnlockHighlight()
+                getglobal("ArtisanEditorSkillRight"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
             end
             craftButton:Show()
+            getglobal("ArtisanEditorRightDelete"..i):Show()
+            getglobal("ArtisanEditorRightUp"..i):Show()
+            getglobal("ArtisanEditorRightDown"..i):Show()
         else
-            getglobal("ArtisanEditorSkilRight"..i):Hide()
+            getglobal("ArtisanEditorSkillRight"..i):Hide()
+            getglobal("ArtisanEditorRightDelete"..i):Hide()
+            getglobal("ArtisanEditorRightUp"..i):Hide()
+            getglobal("ArtisanEditorRightDown"..i):Hide()
         end
         buttonIndex = buttonIndex + 1
     end
@@ -1688,6 +1904,7 @@ StaticPopupDialogs["ARTISAN_NEW_CATEGORY"] = {
 }
 
 function ArtisanEditor_AddCategory(categoryName)
+    categoryName = strtrim(categoryName)
     local tabName = ArtisanFrame.selectedTabName
     if categoryName ~= "" then
         tinsert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
