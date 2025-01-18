@@ -1755,6 +1755,7 @@ function ArtisanEditorScrollFrameRight_OnLoad()
 end
 
 function ArtisanEditor_OnShow()
+    ArtisanEditor.currentHeader = nil
     if not ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting] then
         return
     end
