@@ -1,29 +1,62 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
-	<Button name="ArtisanUncategorizedButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+	<Button name="ArtisanEditorLeftButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
 		<Scripts>
 			<OnClick>
-				ArtisanUncategorized_OnClick(arg1)
+				ArtisanEditorLeftButton_OnClick(arg1)
 			</OnClick>
-			<OnLeave>
-				if ( ArtisanFrame.selectedSkill ~= this:GetID() ) then
-					getglobal(this:GetName().."SubText"):SetTextColor(this.r, this.g, this.b)
-				end
-			</OnLeave>
-			<OnEnter>
-				getglobal(this:GetName().."SubText"):SetTextColor(1, 1, 1)
-			</OnEnter>
+
 		</Scripts>
 	</Button>
-    <Frame name="ArtisanCustomSortingEditor" parent="ArtisanFrame" hidden="true" movable="true" toplevel="true" enableMouse="true">
-        <Size x="680" y="460"/>
+	<Button name="ArtisanEditorRightButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+        <Layers>
+			<Layer level="BACKGROUND">
+				<Texture name="$parentBackground" hidden="true">
+					<Size x="293" y="16"/> 
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT"/>
+					</Anchors>
+					<Color r="1" g="0" b="0" a="0.15"/>
+				</Texture>
+            </Layer>
+        </Layers>
+		<Scripts>
+			<OnClick>
+				ArtisanEditorRightButton_OnClick(arg1)
+			</OnClick>
+		</Scripts>
+	</Button>
+    <Button name="ArtisanRightButtonUpTemplate" inherits="UIPanelScrollUpButtonTemplate" virtual="true">
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonUp_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Button name="ArtisanRightButtonDownTemplate" inherits="UIPanelScrollDownButtonTemplate" virtual="true">
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonDown_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Button name="ArtisanRightButtonDeleteTemplate" inherits="UIPanelCloseButton" virtual="true">
+        <Size x="24" y="24"/>
+        <Scripts>
+			<OnClick>
+				ArtisanRightButtonDelete_OnClick(arg1)
+			</OnClick>
+        </Scripts>
+    </Button>
+    <Frame name="ArtisanEditor" parent="ArtisanFrame" hidden="true" movable="true" toplevel="true" enableMouse="true">
+        <Size x="680" y="480"/>
         <Anchors>
             <Anchor point="LEFT" relativeTo="ArtisanFrame" relativePoint="RIGHT">
                 <Offset x="0" y="25"/>
             </Anchor>
         </Anchors>
-        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+        <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
             <BackgroundInsets>
                 <AbsInset left="11" right="12" top="12" bottom="11"/>
             </BackgroundInsets>
@@ -33,50 +66,155 @@
             <EdgeSize>
                 <AbsValue val="32"/>
             </EdgeSize>
+            <Color r="0" g="0" b="0" a="1" />
         </Backdrop>
         <Frames>
             <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
                 <Size x="296" y="400"/>
                 <Anchors>
                     <Anchor point="LEFT">
-                        <Offset x="15" y="0"/>
+                        <Offset x="15" y="10"/>
                     </Anchor>
                 </Anchors>
-                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
                     <BackgroundInsets>
                         <AbsInset left="0" right="0" top="0" bottom="0"/>
                     </BackgroundInsets>
                     <TileSize>
                         <AbsValue val="32"/>
                     </TileSize>
-                </Backdrop>
+                </Backdrop> -->
                 <Scripts>
+                    <OnLoad>
+                        ArtisanEditorScrollFrameLeft_OnLoad()
+                    </OnLoad>
                     <OnVerticalScroll>
-                        
+                        FauxScrollFrame_OnVerticalScroll(16, ArtisanEditorLeft_Update)
                     </OnVerticalScroll>
                 </Scripts>
             </ScrollFrame>
-            <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+            <ScrollFrame name="ArtisanEditorScrollFrameRight" inherits="FauxScrollFrameTemplate">
                 <Size x="296" y="400"/>
                 <Anchors>
                     <Anchor point="LEFT" relativeTo="ArtisanEditorScrollFrameLeft" relativePoint="RIGHT">
                         <Offset x="30" y="0"/>
                     </Anchor>
                 </Anchors>
-                <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
                     <BackgroundInsets>
                         <AbsInset left="0" right="0" top="0" bottom="0"/>
                     </BackgroundInsets>
                     <TileSize>
                         <AbsValue val="32"/>
                     </TileSize>
-                </Backdrop>
+                </Backdrop> -->
                 <Scripts>
+                    <OnLoad>
+                        ArtisanEditorScrollFrameRight_OnLoad()
+                    </OnLoad>
                     <OnVerticalScroll>
-                        
+                        FauxScrollFrame_OnVerticalScroll(16, ArtisanEditorRight_Update)
                     </OnVerticalScroll>
                 </Scripts>
             </ScrollFrame>
+            <Button name="ArtisanEditorAddCategory" inherits="UIPanelButtonTemplate2" text="Add Category">
+                <Size x="100" y="24"/>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT">
+                        <Offset x="-130" y="15" />
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        ArtisanEditorAdd_OnClick()
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <EditBox name="ArtisanEditorSearchBox" inherits="InputBoxTemplate" letters="100">
+				<Size>
+					<AbsDimension x="270" y="32" />
+				</Size>
+				<Anchors>
+					<Anchor point="BOTTOMLEFT">
+						<Offset>
+							<AbsDimension x="35" y="15"/>
+						</Offset>
+					</Anchor>
+				</Anchors>
+                <Frames>
+					<Frame name="ArtisanEditorSearchBoxIcon">
+						<Size x="14" y="14" />
+						<Anchors>
+							<Anchor point="LEFT" relativeTo="$parent">
+								<Offset x="1" y="-2" />
+							</Anchor>
+						</Anchors>
+						<Backdrop bgFile="Interface\Common\UI-SearchBox-Icon">
+							<Color r="1.0" g="1.0" b="1.0" a="0.6" />
+						</Backdrop>
+					</Frame>
+                    <Button name="$parentClearButton">
+                        <Size x="14" y="14" />
+                        <Anchors>
+                            <Anchor point="RIGHT" relativeTo="$parent">
+                                <Offset x="-3" y="0" />
+                            </Anchor>
+                        </Anchors>
+                        <Backdrop bgFile="Interface\Common\UI-SearchBox-Clear">
+                            <Color r="1.0" g="1.0" b="1.0" a="0.6" />
+                        </Backdrop>
+                        <Scripts>
+                            <OnClick>
+                                if not ArtisanEditorSearchBox:GetText() then
+                                    return
+                                end
+                                local box = this:GetParent()
+                                box:SetText("")
+                                box:SetFocus()
+                                box:ClearFocus()
+								ArtisanEditorSearchBox:Show()
+								ArtisanEditor_Search()
+                            </OnClick>
+                            <OnEnter>
+                                GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
+                                GameTooltip:SetText("Clear")
+                                GameTooltip:Show()
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 1.0)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 0.6)
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+                </Frames>
+				<Scripts>
+					<OnLoad>
+						this:SetAutoFocus(false)
+						this:SetTextInsets(15, 8, 0, 0)
+					</OnLoad>
+					<OnEnterPressed>
+						ArtisanEditor_Search()
+						this:ClearFocus()
+					</OnEnterPressed>
+					<OnTextChanged>
+						ArtisanEditor_Search()
+					</OnTextChanged>
+					<OnEscapePressed>
+						this:ClearFocus()
+						ArtisanEditor_Search()
+					</OnEscapePressed>
+				</Scripts>
+				<FontString name="$parentSearchString" inherits="GameFontNormal"></FontString>
+			</EditBox>
         </Frames>
+        <Scripts>
+            <OnShow>
+                ArtisanEditor_OnShow()
+            </OnShow>
+            <OnHide>
+                ArtisanEditorSearchBox:SetText("")
+            </OnHide>
+        </Scripts>
     </Frame>
 </Ui>

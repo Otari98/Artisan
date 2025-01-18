@@ -37,10 +37,15 @@
 			<OnEnter>
 				GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT");
 				if ArtisanFrame.craft then
-					local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
-					GameTooltip:SetCraftItem(originalID, this:GetID());
+					local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
+					GameTooltip:SetCraftItem(originalID, this:GetID())
 				else
-					GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill, this:GetID());
+					if ARTISAN_CONFIG.sorting == "custom" then
+						local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
+						GameTooltip:SetTradeSkillItem(originalID, this:GetID())
+					else
+						GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill, this:GetID())
+					end
 				end
 				CursorUpdate();
 			</OnEnter>
@@ -125,13 +130,13 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-				<!-- <FontString name="ArtisanSortingLabel" inherits="GameFontNormalSmall" text="Sorting options:">
+				<FontString name="ArtisanSortingLabel" inherits="GameFontNormal" text="Sorting:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
-							<Offset x="75" y="-59"/>
+							<Offset x="78" y="-66"/>
 						</Anchor>
 					</Anchors>
-				</FontString> -->
+				</FontString>
 				<Texture file="Interface\ClassTrainerFrame\UI-ClassTrainer-TopLeft">
 					<Size>
 						<AbsDimension x="256" y="256"/>
@@ -292,6 +297,7 @@
 						<Scripts>
 							<OnClick>
 								ArtisanFrameSearchBox:ClearFocus()
+								--CloseDropDownMenus()
 							</OnClick>
 						</Scripts>
 					</Button>			
@@ -477,10 +483,10 @@
                                 if not ArtisanFrameSearchBox:GetText() then
                                     return
                                 end
-                                local box = this:GetParent();
-                                box:SetText("");
-                                box:SetFocus();
-                                box:ClearFocus();
+                                local box = this:GetParent()
+                                box:SetText("")
+                                box:SetFocus()
+                                box:ClearFocus()
 								ArtisanFrameSearchBoxIcon:Show()
 								ArtisanFrame_Search()
                             </OnClick>
@@ -488,35 +494,28 @@
                                 GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
                                 GameTooltip:SetText("Clear")
                                 GameTooltip:Show()
-                                this:SetBackdropColor(1.0, 1.0, 1.0, 1.0);
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 1.0)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
-                                this:SetBackdropColor(1.0, 1.0, 1.0, 0.6);
+                                this:SetBackdropColor(1.0, 1.0, 1.0, 0.6)
                             </OnLeave>
                         </Scripts>
                     </Button>
                 </Frames>
 				<Scripts>
 					<OnLoad>
-						this:SetAutoFocus(false);
-						this:SetTextInsets(0, 8, 0, 0);
+						this:SetAutoFocus(false)
+						this:SetTextInsets(15, 8, 0, 0)
 					</OnLoad>
 					<OnEnterPressed>
 						ArtisanFrame_Search()
 						this:ClearFocus()
-						if this:GetText() == "" then
-							ArtisanFrameSearchBoxIcon:Show()
-						else
-							ArtisanFrameSearchBoxIcon:Hide()
-						end
 					</OnEnterPressed>
 					<OnTextChanged>
 						if this:GetText() == "" then
-							ArtisanFrameSearchBoxIcon:Show()
 							ArtisanCollapseAllButton:Enable()
 						else
-							ArtisanFrameSearchBoxIcon:Hide()
 							ArtisanCollapseAllButton:Disable()
 						end
 						ArtisanFrame_Search()
@@ -819,10 +818,15 @@
 										if ( ArtisanFrame.selectedSkill ~= 0 ) then
 											GameTooltip:SetOwner(this, "ANCHOR_RIGHT");
 											if ArtisanFrame.craft then
-												local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
+												local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
 												GameTooltip:SetCraftSpell(originalID);
 											else
-												GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill);
+												if ARTISAN_CONFIG.sorting ~= "custom" then
+													GameTooltip:SetTradeSkillItem(ArtisanFrame.selectedSkill)
+												else
+													local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
+													GameTooltip:SetTradeSkillItem(originalID)
+												end
 											end
 											CursorUpdate();
 										end
@@ -951,13 +955,7 @@
 				</Anchors>
 				<Scripts>
 					<OnClick>
-						if ArtisanFrame.craft then
-							local originalID = craftingSkills[ArtisanFrame.selectedTabName][ArtisanFrame.selectedSkill].id
-							DoCraft(originalID)
-						else
-							DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrameInputBox:GetNumber());
-						end
-						ArtisanFrameInputBox:ClearFocus();
+						Artisan_DoCraft()
 					</OnClick>
 				</Scripts>
 			</Button>
@@ -974,9 +972,9 @@
 				</Anchors>
 				<Scripts>
 					<OnClick>
-						ArtisanFrameInputBox:SetNumber(ArtisanFrame.numAvailable);
-						DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrame.numAvailable);
-						ArtisanFrameInputBox:ClearFocus();
+						ArtisanFrameInputBox:SetNumber(ArtisanFrame.numAvailable)
+						Artisan_DoCraft(ArtisanFrame.numAvailable)
+						ArtisanFrameInputBox:ClearFocus()
 					</OnClick>
 				</Scripts>
 			</Button>
@@ -1096,24 +1094,11 @@
 				<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 			</Button>
-			<!-- <Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2">
-				<Size x="60" y="32"/>
-				<Anchors>
-					<Anchor point="TOPRIGHT">
-						<Offset x="-40" y="-50"/>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-						ArtisanEditButton_OnClick()
-					</OnClick>
-				</Scripts>
-			</Button>
 			<CheckButton name="ArtisanSortDefault" inherits="OptionsCheckButtonTemplate" id="1">
 				<Size x="24" y="24"/>
 				<Anchors>
-					<Anchor point="TOPLEFT">
-						<Offset x="70" y="-73"/>
+					<Anchor point="CENTER" relativeTo="ArtisanSortingLabel" relativePoint="RIGHT">
+						<Offset x="18" y="0"/>
 					</Anchor>
 				</Anchors>
 				<Scripts>
@@ -1144,43 +1129,23 @@
                         PlaySound("igMainMenuOptionCheckBoxOn")
 					</OnClick>
 				</Scripts>
-			</CheckButton> -->
-			<!-- <CheckButton name="ArtisanSortSkill" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
-				<Size x="24" y="24"/>
-				<Anchors>
-					<Anchor  point="CENTER" relativeTo="ArtisanSortCustom" relativePoint="RIGHT">
-						<Offset x="60" y="0"/>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnLoad>
-						getglobal(this:GetName().."Text"):SetText("Skill")
-						this:SetFrameLevel(4)
-					</OnLoad>
-					<OnClick>
-						ArtisanSortSkill_OnClick()
-                        PlaySound("igMainMenuOptionCheckBoxOn")
-					</OnClick>
-				</Scripts>
 			</CheckButton>
-			<CheckButton name="ArtisanSortName" inherits="OptionsCheckButtonTemplate" id="4">
-				<Size x="24" y="24"/>
+			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2" hidden="true">
+				<Size x="60" y="32"/>
 				<Anchors>
-					<Anchor point="CENTER" relativeTo="ArtisanSortSkill" relativePoint="RIGHT">
+					<Anchor point="CENTER" relativeTo="ArtisanSortCustomText" relativePoint="RIGHT">
 						<Offset x="50" y="0"/>
 					</Anchor>
 				</Anchors>
 				<Scripts>
 					<OnLoad>
-						getglobal(this:GetName().."Text"):SetText("Name")
-						this:SetFrameLevel(5)
+						this:SetFrameLevel(ArtisanSortCustom:GetFrameLevel() + 1)
 					</OnLoad>
 					<OnClick>
-						ArtisanSortName_OnClick()
-                        PlaySound("igMainMenuOptionCheckBoxOn")
+						ArtisanEditButton_OnClick()
 					</OnClick>
 				</Scripts>
-			</CheckButton> -->
+			</Button>
         </Frames>
 		<Scripts>
 			<OnLoad>
@@ -1197,6 +1162,7 @@
 				this.selectedTabName = nil
 				CloseCraft()
 				CloseTradeSkill()
+				ArtisanEditor:Hide()
 				PlaySound("igCharacterInfoClose");
 			</OnHide>
 			<OnMouseWheel>
@@ -1204,6 +1170,7 @@
 			</OnMouseWheel>
 			<OnMouseDown>
 				ArtisanFrameSearchBox:ClearFocus()
+				--CloseDropDownMenus()
 			</OnMouseDown>
 		</Scripts>
 	</Frame>

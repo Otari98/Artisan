@@ -1,0 +1,8 @@
+<Bindings>
+    <Binding name="ARTISAN_CREATE" header="ARTISAN_TITLE">
+        ArtisanFrameCreateButton:Click()
+    </Binding>
+    <Binding name="ARTISAN_CREATE_ALL">
+        ArtisanFrameCreateAllButton:Click()
+    </Binding>
+</Bindings>
