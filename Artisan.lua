@@ -11,7 +11,10 @@ ARTISAN_SKILLS = ARTISAN_SKILLS or {}
 ARTISAN_CUSTOM = ARTISAN_CUSTOM or {}
 ARTISAN_UNCATEGORIZED = ARTISAN_UNCATEGORIZED or {}
 ARTISAN_CONFIG = ARTISAN_CONFIG or {}
-ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or "default"
+
+BINDING_HEADER_ARTISAN_TITLE = "Artisan Bindings"
+BINDING_NAME_ARTISAN_CREATE = "Create"
+BINDING_NAME_ARTISAN_CREATE_ALL = "Create All"
 
 local professions = {
     ["primary"] = {
@@ -152,6 +155,16 @@ local function getkey(list, value)
     end
 end
 
+local function getn(t)
+    if type(t) ~= "table" then
+        return 0
+    end
+    return table.getn(t)
+end
+
+local tinsert = table.insert
+local tremove = table.remove
+
 local function strtrim(s)
 	return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
 end
@@ -201,6 +214,8 @@ function ArtisanFrame_OnLoad()
     this:RegisterEvent("CRAFT_SHOW")
     this:RegisterEvent("CRAFT_CLOSE")
     this:RegisterEvent("CRAFT_UPDATE")
+    this:RegisterEvent("REPLACE_ENCHANT")
+	this:RegisterEvent("TRADE_REPLACE_ENCHANT")
 end
 
 function Artisan_Init()
@@ -229,12 +244,23 @@ function Artisan_Init()
     ArtisanFrame.originalScroll = ArtisanDetailScrollFrame:GetScript("OnMouseWheel")
     FauxScrollFrame_SetOffset(TradeSkillListScrollFrame, 0)
 
+    ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or "default"
     if ARTISAN_CONFIG.sorting == "default" then
         ArtisanSortDefault:SetChecked(1)
         ArtisanFrameEditButton:Hide()
     elseif ARTISAN_CONFIG.sorting == "custom" then
         ArtisanSortCustom:SetChecked(1)
         ArtisanFrameEditButton:Show()
+    end
+
+    if not ARTISAN_CONFIG.auto then
+        ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
+        ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
+    end
+
+    SLASH_ARTISAN1 = "/artisan"
+    SlashCmdList["ARTISAN"] = function(msg)
+        Artisan_SlashCommand(msg)
     end
 end
 
@@ -332,6 +358,12 @@ function ArtisanFrame_OnEvent()
         if ArtisanFrame:IsVisible() then
 		    ArtisanFrame_Search()
         end
+    elseif event == "REPLACE_ENCHANT" then
+        ReplaceEnchant()
+        StaticPopup_Hide("REPLACE_ENCHANT")
+    elseif event == "TRADE_REPLACE_ENCHANT" then
+        ReplaceTradeEnchant()
+        StaticPopup_Hide("TRADE_REPLACE_ENCHANT")
     end
 end
 
@@ -437,12 +469,12 @@ local function C_GetNumCrafts()
     end
 end
 
-local function C_GetCraftInfo(i)
+local function C_GetCraftInfo(originalIndex)
     local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
     if not ArtisanFrame.craft then
-        craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = GetTradeSkillInfo(i)
+        craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = GetTradeSkillInfo(originalIndex)
     else
-        craftName, craftSubSpellName, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(i)
+        craftName, craftSubSpellName, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(originalIndex)
     end
     return craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
 end
@@ -587,6 +619,21 @@ function Artisan_UpdateSkillList()
                             tremove(ARTISAN_SKILLS[craft][sorting], k3)
                         end
                     end
+                end
+            end
+        end
+        -- update atributes
+        for i = 1, getn(ARTISAN_SKILLS[craft][sorting]) do
+            if ARTISAN_SKILLS[craft][sorting].type ~= "header" then
+                local originalID = ARTISAN_SKILLS[craft][sorting][i].id
+                if originalID then
+                    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = C_GetCraftInfo(originalID)
+                    ARTISAN_SKILLS[craft][sorting][i].name = craftName
+                    ARTISAN_SKILLS[craft][sorting][i].type = craftType
+                    ARTISAN_SKILLS[craft][sorting][i].num = numAvailable
+                    ARTISAN_SKILLS[craft][sorting][i].sub = craftSubSpellName
+                    ARTISAN_SKILLS[craft][sorting][i].tp = trainingPointCost
+                    ARTISAN_SKILLS[craft][sorting][i].lvl = requiredLevel
                 end
             end
         end
@@ -771,7 +818,7 @@ function ArtisanFrame_Update()
                 notExpanded = notExpanded + 1
             end
         end
-        if ( GetTradeSkillSelectionIndex() == i ) then
+        if ( ArtisanFrame.selectedSkill and ArtisanFrame.selectedSkill == i ) then
             -- Set the max makeable items for the create all button
             ArtisanFrame.numAvailable = numAvailable
         end
@@ -1271,6 +1318,25 @@ function Artisan_GetFirstCraft()
     return 0
 end
 
+function Artisan_DoCraft(numAvailable)
+    if ArtisanFrame.craft then
+        local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
+        DoCraft(originalID)
+    else
+        local amount = ArtisanFrameInputBox:GetNumber()
+        if numAvailable then
+            amount = numAvailable
+        end
+        if ARTISAN_CONFIG.sorting == "custom" then
+            local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
+            DoTradeSkill(originalID, amount)
+        else
+            DoTradeSkill(ArtisanFrame.selectedSkill, amount)
+        end
+    end
+    ArtisanFrameInputBox:ClearFocus()
+end
+
 function Artisan_GetNumCrafts()
     if not ArtisanFrame.craft and ARTISAN_CONFIG.sorting == "default" then
         return GetNumTradeSkills()
@@ -1485,7 +1551,6 @@ function ArtisanRightButtonUp_OnClick()
                 headerAbove = craftIndex - 1
             end
             local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
-            local newParent = getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 2
             local temp = {}
             for i = offset, craftIndex, -1 do
                 tinsert(temp, ARTISAN_CUSTOM[tabName][i])
@@ -1494,14 +1559,12 @@ function ArtisanRightButtonUp_OnClick()
             for i = 1, getn(temp) do
                 tinsert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
             end
-            -- FIX THIS
-            for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-                if v.parent then
-                    if v.parent == headerAbove then
-                        v.parent = newParent
-                    elseif v.parent == craftIndex then
-                        v.parent = headerAbove
-                    end
+            local newParent = 1
+            for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent then
+                    ARTISAN_CUSTOM[tabName][i].parent = newParent
+                else
+                    newParent = i
                 end
             end
         end
@@ -1561,11 +1624,12 @@ function ArtisanRightButtonDown_OnClick()
             else
                 headerBelow = craftIndex + 1
             end
+
             if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
                 return
             end
+
             local pos = headerBelow + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
-            local newParent = craftIndex + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
             local x = 0
             for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
                 tinsert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
@@ -1576,13 +1640,12 @@ function ArtisanRightButtonDown_OnClick()
                 tremove(ARTISAN_CUSTOM[tabName], i - x)
                 x = x + 1
             end
-            for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-                if v.parent then
-                    if v.parent == craftIndex then
-                        v.parent = newParent
-                    elseif v.parent == headerBelow then
-                        v.parent = craftIndex
-                    end
+            local newParent = 1
+            for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent then
+                    ARTISAN_CUSTOM[tabName][i].parent = newParent
+                else
+                    newParent = i
                 end
             end
         end
@@ -1914,5 +1977,26 @@ function ArtisanEditor_AddCategory(categoryName)
             end
         end
         ArtisanEditorRight_Update()
+    end
+end
+
+function Artisan_SlashCommand(msg)
+    local cmd = strtrim(msg)
+    cmd = strlower(cmd)
+    if cmd == "" then
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - toggles auto confirmation of enchant replacements|r")
+    end
+    if cmd == "auto" then
+        if ARTISAN_CONFIG.auto then
+            ARTISAN_CONFIG.auto = false
+            ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
+            ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto accepting enchant replacement dialogs is |r"..GREY.."OFF|r")
+        else
+            ARTISAN_CONFIG.auto = true
+            ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
+            ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto accepting enchant replacement dialogs is |r"..GREEN.."ON|r")
+        end
     end
 end

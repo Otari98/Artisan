@@ -955,13 +955,7 @@
 				</Anchors>
 				<Scripts>
 					<OnClick>
-						if ArtisanFrame.craft then
-							local originalID = ARTISAN_SKILLS[ArtisanFrame.selectedTabName][ARTISAN_CONFIG.sorting][ArtisanFrame.selectedSkill].id
-							DoCraft(originalID)
-						else
-							DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrameInputBox:GetNumber());
-						end
-						ArtisanFrameInputBox:ClearFocus();
+						Artisan_DoCraft()
 					</OnClick>
 				</Scripts>
 			</Button>
@@ -978,9 +972,9 @@
 				</Anchors>
 				<Scripts>
 					<OnClick>
-						ArtisanFrameInputBox:SetNumber(ArtisanFrame.numAvailable);
-						DoTradeSkill(ArtisanFrame.selectedSkill, ArtisanFrame.numAvailable);
-						ArtisanFrameInputBox:ClearFocus();
+						ArtisanFrameInputBox:SetNumber(ArtisanFrame.numAvailable)
+						Artisan_DoCraft(ArtisanFrame.numAvailable)
+						ArtisanFrameInputBox:ClearFocus()
 					</OnClick>
 				</Scripts>
 			</Button>
