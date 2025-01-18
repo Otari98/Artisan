@@ -326,14 +326,10 @@ function ArtisanFrame_OnEvent()
 			Artisan_SetSelection(selection)
 		else
 			if numCrafts > 0 then
-                if ArtisanFrame.selectedTabName == "Beast Training" then
-                    Artisan_SetSelection(1)
-                else
-                    Artisan_SetSelection(Artisan_GetFirstCraft())
-                    FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-                    ArtisanListScrollFrame:SetVerticalScroll(0)
-                    ArtisanListScrollFrameScrollBar:SetValue(0)
-                end
+                Artisan_SetSelection(Artisan_GetFirstCraft())
+                FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+                ArtisanListScrollFrame:SetVerticalScroll(0)
+                ArtisanListScrollFrameScrollBar:SetValue(0)
 			end
 		end
 		ArtisanFrame_Update()
@@ -1438,7 +1434,7 @@ function ArtisanSortDefault_OnClick()
         ArtisanSortCustom:SetChecked(nil)
         Artisan_UpdateSkillList()
         Artisan_SetSelection(Artisan_GetFirstCraft())
-        ArtisanFrame_Update()
+        ArtisanFrame_Search()
         ArtisanFrameEditButton:Hide()
         if ArtisanEditor:IsVisible() then
             ArtisanEditor:Hide()
@@ -1456,7 +1452,7 @@ function ArtisanSortCustom_OnClick()
         ArtisanEditor_OnShow()
         Artisan_UpdateSkillList()
         Artisan_SetSelection(Artisan_GetFirstCraft())
-        ArtisanFrame_Update()
+        ArtisanFrame_Search()
         ArtisanFrameEditButton:Show()
     else
         this:SetChecked(1)
