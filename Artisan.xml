@@ -17,6 +17,9 @@
 			</Layer>
 		</Layers>
 		<Scripts>
+			<!-- <OnLoad>
+				getglobal(this:GetName().."Text"):SetWidth(270)
+			</OnLoad> -->
 			<OnClick>
 				ArtisanSkillButton_OnClick(arg1)
 			</OnClick>
@@ -1133,8 +1136,8 @@
 			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2" hidden="true">
 				<Size x="60" y="32"/>
 				<Anchors>
-					<Anchor point="CENTER" relativeTo="ArtisanSortCustomText" relativePoint="RIGHT">
-						<Offset x="50" y="0"/>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-38" y="-55"/>
 					</Anchor>
 				</Anchors>
 				<Scripts>
