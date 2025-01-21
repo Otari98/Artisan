@@ -11,7 +11,8 @@ ARTISAN_SKILLS = ARTISAN_SKILLS or {}
 ARTISAN_CUSTOM = ARTISAN_CUSTOM or {}
 ARTISAN_UNCATEGORIZED = ARTISAN_UNCATEGORIZED or {}
 ARTISAN_CONFIG = ARTISAN_CONFIG or {}
-
+ARTISAN_CONFIG.auto = true
+ARTISAN_CONFIG.icons = true
 BINDING_HEADER_ARTISAN_TITLE = "Artisan Bindings"
 BINDING_NAME_ARTISAN_CREATE = "Create"
 BINDING_NAME_ARTISAN_CREATE_ALL = "Create All"
@@ -256,11 +257,12 @@ function ArtisanFrame_OnEvent()
         ArtisanRankFrame:SetStatusBarColor(0.0, 0.0, 1.0, 0.5)
         ArtisanRankFrameBackground:SetVertexColor(0.0, 0.0, 0.75, 0.5)
         ARTISAN_SKILLS = ARTISAN_SKILLS or {}
+        ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or {}
         if type(ARTISAN_CONFIG.sorting) ~= "table" then
             ARTISAN_CONFIG.sorting = {}
         end
-        ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or {}
         ARTISAN_CONFIG.auto = ARTISAN_CONFIG.auto and true or false
+        ARTISAN_CONFIG.icons = ARTISAN_CONFIG.icons  and true or false
         if not ARTISAN_CONFIG.auto then
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
@@ -735,6 +737,11 @@ function ArtisanFrame_Update()
         local craftButton = getglobal("ArtisanFrameSkill"..i)
         local craftButtonSubText = getglobal("ArtisanFrameSkill"..i.."SubText")
         local craftButtonCost = getglobal("ArtisanFrameSkill"..i.."Cost")
+        local craftButtonIcon = getglobal("ArtisanFrameSkill"..i.."Icon")
+        local indent = " "
+        if ARTISAN_CONFIG.icons then
+            indent = "   "
+        end
         craftButtonCost:SetText("")
 
         if ( craftIndex > 0 and craftIndex <= numCrafts ) then
@@ -766,16 +773,22 @@ function ArtisanFrame_Update()
                 end
                 getglobal("ArtisanFrameSkill"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
                 craftButton:UnlockHighlight()
+                craftButtonIcon:SetTexture("")
             else
                 craftButton:SetNormalTexture("")
+                if ARTISAN_CONFIG.icons then
+                    craftButtonIcon:SetTexture(Artisan_GetCraftIcon(craftIndex))
+                else
+                    craftButtonIcon:SetTexture("")
+                end
                 getglobal("ArtisanFrameSkill"..i.."Highlight"):SetTexture("")
                 if craftName then
                     -- remove (Rank) from name
                     craftName = gsub(craftName, "  %(Rank %d+%)", "")
                     if ( numAvailable == 0 ) then
-                        craftButton:SetText(" "..craftName)
+                        craftButton:SetText(indent..craftName)
                     else
-                        craftButton:SetText(" "..craftName.." ["..numAvailable.."]")
+                        craftButton:SetText(indent..craftName.." ["..numAvailable.."]")
                     end
                 end
                 -- (Rank)
@@ -1904,6 +1917,10 @@ function ArtisanEditorLeft_Update()
     local results = getn(editorSearchResults)
     local craftsToUpdate = results == 0 and numCrafts or results
     FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, craftsToUpdate, 25, craftSkillHeight)
+    local indent = ""
+    if ARTISAN_CONFIG.icons then
+        indent = "   "
+    end
     for i = 1, 25 do
         local craftIndex = 0
         if ArtisanEditorSearchBox:GetText() ~= "" then
@@ -1926,6 +1943,7 @@ function ArtisanEditorLeft_Update()
             local requiredLevel = ARTISAN_UNCATEGORIZED[tabName][craftIndex].lvl
             local originalID = ARTISAN_UNCATEGORIZED[tabName][craftIndex].id
             local craftButton = getglobal("ArtisanEditorSkillLeft"..buttonIndex)
+            local icon = getglobal("ArtisanEditorSkillLeft"..buttonIndex.."Icon")
             craftButton.name = craftName
             craftButton.type = craftType
             craftButton.num = numAvailable
@@ -1938,8 +1956,17 @@ function ArtisanEditorLeft_Update()
                 craftButton:SetTextColor(color.r, color.g, color.b)
             end
             craftButton:SetID(craftIndex)
-            craftButton:SetText(craftName)
+            craftButton:SetText(indent..craftName)
             craftButton:SetNormalTexture("")
+            if ARTISAN_CONFIG.icons then
+                if ArtisanFrame.craft then
+                    icon:SetTexture(GetCraftIcon(originalID))
+                else
+                    icon:SetTexture(GetTradeSkillIcon(originalID))
+                end
+            else
+                icon:SetTexture("")
+            end
             getglobal("ArtisanEditorSkillLeft"..buttonIndex.."Highlight"):SetTexture("")
             craftButton:Show()
         else
@@ -1956,6 +1983,10 @@ function ArtisanEditorRight_Update()
     local numCrafts = getn(ARTISAN_CUSTOM[tabName])
     local buttonIndex = 1
     FauxScrollFrame_Update(ArtisanEditorScrollFrameRight, numCrafts, 25, craftSkillHeight)
+    local indent = ""
+    if ARTISAN_CONFIG.icons then
+        indent = "   "
+    end
     for i = 1, 25 do
         local craftIndex = 0
         craftIndex = i + craftOffset
@@ -1968,6 +1999,7 @@ function ArtisanEditorRight_Update()
             local requiredLevel = ARTISAN_CUSTOM[tabName][craftIndex].lvl
             local originalID = ARTISAN_CUSTOM[tabName][craftIndex].id
             local craftButton = getglobal("ArtisanEditorSkillRight"..buttonIndex)
+            local icon = getglobal("ArtisanEditorSkillRight"..buttonIndex.."Icon")
             craftButton.name = craftName
             craftButton.type = craftType
             craftButton.num = numAvailable
@@ -1981,8 +2013,8 @@ function ArtisanEditorRight_Update()
                 craftButton:SetTextColor(color.r, color.g, color.b)
             end
             craftButton:SetID(craftIndex)
-            craftButton:SetText(craftName)
             if craftType ~= "header" then
+                craftButton:SetText(indent..craftName)
                 craftButton:SetNormalTexture("")
                 getglobal("ArtisanEditorSkillRight"..buttonIndex.."Highlight"):SetTexture("")
                 if craftButton.parent and craftButton.parent == ArtisanEditor.currentHeader then
@@ -1990,7 +2022,17 @@ function ArtisanEditorRight_Update()
                 else
                     getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Hide()
                 end
+                if ARTISAN_CONFIG.icons then
+                    if ArtisanFrame.craft then
+                        icon:SetTexture(GetCraftIcon(originalID))
+                    else
+                        icon:SetTexture(GetTradeSkillIcon(originalID))
+                    end
+                else
+                    icon:SetTexture("")
+                end
             else
+                craftButton:SetText(craftName)
                 if ArtisanEditor.currentHeader == craftIndex then
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
                     getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Show()
@@ -2063,8 +2105,8 @@ function Artisan_SlashCommand(msg)
     if cmd == "" then
         DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
         DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - toggles auto confirmation of enchant replacements|r")
-    end
-    if cmd == "auto" then
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - show/hide icons next to skill names|r")
+    elseif cmd == "auto" then
         if ARTISAN_CONFIG.auto then
             ARTISAN_CONFIG.auto = false
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
@@ -2075,6 +2117,14 @@ function Artisan_SlashCommand(msg)
             ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
             DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto accepting enchant replacement dialogs is |r"..GREEN.."ON|r")
+        end
+    elseif cmd == "icons" then
+        if ARTISAN_CONFIG.icons then
+            ARTISAN_CONFIG.icons = false
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons |r"..GREY.."OFF|r")
+        else
+            ARTISAN_CONFIG.icons = true
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons |r"..GREEN.."ON|r")
         end
     end
 end

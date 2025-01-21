@@ -2,11 +2,22 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
 	<Button name="ArtisanEditorLeftButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture name="$parentIcon">
+                    <Size x="16" y="16"/>
+                    <Anchors>
+                        <Anchor point="LEFT">
+                            <Offset x="13" y="0"/>
+                        </Anchor>
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
 		<Scripts>
 			<OnClick>
 				ArtisanEditorLeftButton_OnClick(arg1)
 			</OnClick>
-
 		</Scripts>
 	</Button>
 	<Button name="ArtisanEditorRightButtonTemplate" inherits="ClassTrainerSkillButtonTemplate" hidden="false" virtual="true">
@@ -19,6 +30,16 @@
 					</Anchors>
 					<Color r="1" g="0" b="0" a="0.15"/>
 				</Texture>
+            </Layer>
+            <Layer level="BORDER">
+                <Texture name="$parentIcon">
+                    <Size x="16" y="16"/>
+                    <Anchors>
+                        <Anchor point="LEFT">
+                            <Offset x="13" y="0"/>
+                        </Anchor>
+                    </Anchors>
+                </Texture>
             </Layer>
         </Layers>
 		<Scripts>
@@ -213,8 +234,12 @@
                 ArtisanEditor_OnShow()
             </OnShow>
             <OnHide>
+                this.currentHeader = nil
                 ArtisanEditorSearchBox:SetText("")
             </OnHide>
+            <OnMouseUp>
+                ArtisanEditorSearchBox:ClearFocus()
+            </OnMouseUp>
         </Scripts>
     </Frame>
 </Ui>
