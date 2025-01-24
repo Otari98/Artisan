@@ -660,14 +660,14 @@ function ArtisanFrame_Update()
 
     headers = Artisan_UpdateSkillList()
     if ArtisanFrame.craft then
-        ArtisanFrameBottomLeftTex:SetTexture("Interface\\ClassTrainerFrame\\UI-ClassTrainer-BotLeft")
+        ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
         ArtisanFrameCreateButton:SetText(getglobal(GetCraftButtonToken()))
         ArtisanFrameCreateAllButton:Hide()
         ArtisanFrameDecrementButton:Hide()
         ArtisanFrameInputBox:Hide()
         ArtisanFrameIncrementButton:Hide()
     else
-        ArtisanFrameBottomLeftTex:SetTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-BotLeft")
+        ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft")
         ArtisanFrameCreateButton:SetText("Create")
         ArtisanFrameCreateAllButton:Show()
         ArtisanFrameDecrementButton:Show()
@@ -761,6 +761,7 @@ function ArtisanFrame_Update()
                 craftButtonSubText:SetTextColor(color.r, color.g, color.b)
             end
             craftButton:SetID(craftIndex)
+            craftButton.type = craftType
             craftButton:Show()
             -- Handle headers
             if ( craftType == "header" ) then
@@ -1050,7 +1051,7 @@ function Artisan_UpdateTrainingPoints()
 end
 
 function Artisan_UpdateDetailScrollFrame(numReagents)
-    if numReagents > 2 then
+    if numReagents > 4 then
         ArtisanDetailScrollFrame:SetAlpha(1)
         ArtisanDetailScrollChildFrame:SetAlpha(1)
         ArtisanDetailScrollFrame:SetScript("OnMouseWheel", ArtisanFrame.originalScroll)
@@ -1081,9 +1082,67 @@ end
 
 function ArtisanSkillButton_OnClick(button)
     if button == "LeftButton" then
-        ArtisanDetailScrollFrame:SetVerticalScroll(0)
-		Artisan_SetSelection(this:GetID())
-		ArtisanFrame_Update()
+        if IsShiftKeyDown() then
+            local tab = ArtisanFrame.selectedTabName
+            local sorting = ARTISAN_CONFIG.sorting[tab]
+            local craftIndex = this:GetID()
+            local channel, chatNumber
+
+            if not this.type or this.type == "header" or this.type == "none" or this.type == "used" then
+                return
+            end
+
+            if WIM_EditBoxInFocus then
+                channel = "WHISPER"
+                chatNumber = WIM_EditBoxInFocus:GetParent().theUser
+            else
+                channel = ChatFrameEditBox.chatType
+                if channel == "WHISPER" then
+                    chatNumber = ChatFrameEditBox.tellTarget
+                elseif channel == "CHANNEL" then
+                    chatNumber = ChatFrameEditBox.channelTarget
+                end
+            end
+
+            local numMade = ""
+            if not ArtisanFrame.craft then
+                local selection = craftIndex
+                if sorting == "custom" then
+                    selection = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+                end
+                local minMade, maxMade = GetTradeSkillNumMade(selection)
+                if maxMade ~= minMade then
+                    numMade = minMade.."-"..maxMade.."x"
+                elseif minMade ~= 1 then
+                    numMade = minMade.."x"
+                end
+            end
+
+            local itemLink = Artisan_GetItemLink(craftIndex)
+            local linksCount = 0
+            local msg = ""
+
+            SendChatMessage(numMade..itemLink.." reagents:", channel, nil, chatNumber)
+            for reagentIndex = 1, Artisan_GetCraftNumReagents(craftIndex) do
+                local _, _, reagentsNeeded = Artisan_GetCraftReagentInfo(craftIndex, reagentIndex)
+                local reagentLink = Artisan_GetReagentItemLink(craftIndex, reagentIndex)
+        
+                msg = msg..reagentsNeeded.."x"..reagentLink.." "
+                linksCount = linksCount + 1
+                if linksCount == 4 then
+                    SendChatMessage(msg, channel, nil, chatNumber)
+                    msg = ""
+                    linksCount = 0
+                end
+            end
+            if linksCount > 0 then
+                SendChatMessage(msg, channel, nil, chatNumber)
+            end
+        else
+            ArtisanDetailScrollFrame:SetVerticalScroll(0)
+            Artisan_SetSelection(this:GetID())
+            ArtisanFrame_Update()
+        end
 	end
     ArtisanFrameSearchBox:ClearFocus()
 end
@@ -1336,18 +1395,18 @@ function Artisan_GetItemLink(index)
 	end
 end
 
-function Artisan_GetReagentItemLink(index, id)
+function Artisan_GetReagentItemLink(craftIndex, reagentIndex)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
     if ArtisanFrame.craft then
-        local originalIndex = ARTISAN_SKILLS[tab][sorting][index].id
-        return GetCraftReagentItemLink(originalIndex, id)
+        local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+        return GetCraftReagentItemLink(originalIndex, reagentIndex)
     else
         if sorting ~= "custom" then
-            return GetTradeSkillReagentItemLink(index, id)
+            return GetTradeSkillReagentItemLink(craftIndex, reagentIndex)
         else
-            local originalIndex = ARTISAN_SKILLS[tab][sorting][index].id
-            return GetTradeSkillReagentItemLink(originalIndex, id)
+            local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+            return GetTradeSkillReagentItemLink(originalIndex, reagentIndex)
         end
     end
 end
@@ -2100,31 +2159,40 @@ function ArtisanEditor_AddCategory(categoryName)
 end
 
 function Artisan_SlashCommand(msg)
+    local function status(parameter)
+        local str = ""
+        if parameter then
+            str = " ("..GREEN.."ON|r)"
+        else
+            str = " ("..GREY.."OFF|r)"
+        end
+        return str
+    end
     local cmd = strtrim(msg)
     cmd = strlower(cmd)
     if cmd == "" then
         DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - toggles auto confirmation of enchant replacements|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - show/hide icons next to skill names|r")
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements"..status(ARTISAN_CONFIG.auto).."|r")
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names"..status(ARTISAN_CONFIG.icons).."|r")
     elseif cmd == "auto" then
         if ARTISAN_CONFIG.auto then
             ARTISAN_CONFIG.auto = false
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto accepting enchant replacement dialogs is |r"..GREY.."OFF|r")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..GREY.."OFF|r")
         else
             ARTISAN_CONFIG.auto = true
             ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto accepting enchant replacement dialogs is |r"..GREEN.."ON|r")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..GREEN.."ON|r")
         end
     elseif cmd == "icons" then
         if ARTISAN_CONFIG.icons then
             ARTISAN_CONFIG.icons = false
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons |r"..GREY.."OFF|r")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..GREY.."OFF|r")
         else
             ARTISAN_CONFIG.icons = true
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons |r"..GREEN.."ON|r")
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..GREEN.."ON|r")
         end
     end
 end
