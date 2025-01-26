@@ -151,6 +151,19 @@
                     </OnClick>
                 </Scripts>
             </Button>
+            <Button name="ArtisanEditorRenameCategory" inherits="UIPanelButtonTemplate" text="Rename">
+                <Size x="80" y="24"/>
+                <Anchors>
+                    <Anchor point="CENTER" relativeTo="ArtisanEditorAddCategory" relativePoint="RIGHT">
+                        <Offset x="50" y="0" />
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        ArtisanEditorRename_OnClick()
+                    </OnClick>
+                </Scripts>
+            </Button>
             <EditBox name="ArtisanEditorSearchBox" inherits="InputBoxTemplate" letters="100">
 				<Size>
 					<AbsDimension x="270" y="32" />

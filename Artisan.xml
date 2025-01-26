@@ -43,22 +43,7 @@
     <Button name="ArtisanItemTemplate" inherits="QuestItemTemplate" virtual="true">
 		<Scripts>
 			<OnEnter>
-				GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT")
-				local tab = ArtisanFrame.selectedTabName
-				local sorting = ARTISAN_CONFIG.sorting[tab]
-				local skill = ArtisanFrame.selectedSkill
-				if ArtisanFrame.craft then
-					local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
-					GameTooltip:SetCraftItem(originalID, this:GetID())
-				else
-					if sorting == "custom" then
-						local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
-						GameTooltip:SetTradeSkillItem(originalID, this:GetID())
-					else
-						GameTooltip:SetTradeSkillItem(skill, this:GetID())
-					end
-				end
-				CursorUpdate()
+				ArtisanItem_OnEnter()
 			</OnEnter>
 			<OnLeave>
 				GameTooltip:Hide()
@@ -144,7 +129,7 @@
 				<FontString name="ArtisanSortingLabel" inherits="GameFontNormal" text="Sorting:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
-							<Offset x="78" y="-66"/>
+							<Offset x="78" y="-60"/>
 						</Anchor>
 					</Anchors>
 				</FontString>
@@ -474,7 +459,7 @@
 								<Offset x="1" y="-2" />
 							</Anchor>
 						</Anchors>
-						<Backdrop bgFile="Interface\Common\UI-SearchBox-Icon">
+						<Backdrop bgFile="Interface\AddOns\Artisan\Textures\UI-SearchBox-Icon">
 							<Color r="1.0" g="1.0" b="1.0" a="0.6" />
 						</Backdrop>
 					</Frame>
@@ -485,7 +470,7 @@
                                 <Offset x="-3" y="0" />
                             </Anchor>
                         </Anchors>
-                        <Backdrop bgFile="Interface\Common\UI-SearchBox-Clear">
+                        <Backdrop bgFile="Interface\AddOns\Artisan\Textures\UI-SearchBox-Clear">
                             <Color r="1.0" g="1.0" b="1.0" a="0.6" />
                         </Backdrop>
                         <Scripts>
@@ -1109,6 +1094,9 @@
 			</Button>
 			<CheckButton name="ArtisanSortDefault" inherits="OptionsCheckButtonTemplate" id="1">
 				<Size x="24" y="24"/>
+				<HitRectInsets>
+					<AbsInset left="0" right="-50" top="0" bottom="0"/>
+				</HitRectInsets>
 				<Anchors>
 					<Anchor point="CENTER" relativeTo="ArtisanSortingLabel" relativePoint="RIGHT">
 						<Offset x="18" y="0"/>
@@ -1117,16 +1105,19 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Default")
-						this:SetFrameLevel(2)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortDefault_OnClick()
+						ArtisanFrameSearchBox:ClearFocus()
                         PlaySound("igMainMenuOptionCheckBoxOn")
 					</OnClick>
 				</Scripts>
 			</CheckButton>
 			<CheckButton name="ArtisanSortCustom" inherits="OptionsCheckButtonTemplate" id="2" enable="true">
 				<Size x="24" y="24"/>
+				<HitRectInsets>
+					<AbsInset left="0" right="-40" top="0" bottom="0"/>
+				</HitRectInsets>
 				<Anchors>
 					<Anchor point="CENTER" relativeTo="ArtisanSortDefault" relativePoint="RIGHT">
 						<Offset x="60" y="0"/>
@@ -1135,11 +1126,36 @@
 				<Scripts>
 					<OnLoad>
 						getglobal(this:GetName().."Text"):SetText("Custom")
-						this:SetFrameLevel(3)
 					</OnLoad>
 					<OnClick>
 						ArtisanSortCustom_OnClick()
+						ArtisanFrameSearchBox:ClearFocus()
                         PlaySound("igMainMenuOptionCheckBoxOn")
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="ArtisanHaveReagents" inherits="OptionsCheckButtonTemplate" id="3" enable="true">
+				<Size x="24" y="24"/>
+				<HitRectInsets>
+					<AbsInset left="0" right="-80" top="0" bottom="0"/>
+				</HitRectInsets>
+				<Anchors>
+					<Anchor point="CENTER" relativeTo="ArtisanSortDefault" relativePoint="BOTTOM">
+						<Offset x="0" y="-6"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						getglobal(this:GetName().."Text"):SetText("Have Reagents")
+					</OnLoad>
+					<OnClick>
+						Artisan_HaveReagents_OnClick()
+						ArtisanFrameSearchBox:ClearFocus()
+						if this:GetChecked() then
+							PlaySound("igMainMenuOptionCheckBoxOn")
+						else
+							PlaySound("igMainMenuOptionCheckBoxOff")
+						end
 					</OnClick>
 				</Scripts>
 			</CheckButton>
@@ -1147,7 +1163,7 @@
 				<Size x="60" y="32"/>
 				<Anchors>
 					<Anchor point="TOPRIGHT">
-						<Offset x="-38" y="-55"/>
+						<Offset x="-38" y="-50"/>
 					</Anchor>
 				</Anchors>
 				<Scripts>
@@ -1156,6 +1172,7 @@
 					</OnLoad>
 					<OnClick>
 						ArtisanEditButton_OnClick()
+						ArtisanFrameSearchBox:ClearFocus()
 					</OnClick>
 				</Scripts>
 			</Button>
