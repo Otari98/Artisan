@@ -163,27 +163,31 @@ local function getkey(list, value)
     end
 end
 
--- local function getn(t)
---     if type(t) ~= "table" then
---         return 0
---     end
---     local n = 0
---     for _ in ipairs(t) do
---         n = n + 1
---     end
---     return n
--- end
 local getn = table.getn
 local tinsert = table.insert
 local tremove = table.remove
 
 local function strtrim(s)
-	return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
+	return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
+end
+
+local function strsplit(str, delimiter)
+    local result = {}
+    local from = 1
+    local delim_from, delim_to = string.find(str, delimiter, from, true)
+    while delim_from do
+        tinsert(result, string.sub(str, from, delim_from - 1))
+        from = delim_to + 1
+        delim_from, delim_to = string.find(str, delimiter, from, true)
+    end
+    tinsert(result, string.sub(str, from))
+    return result
 end
 
 function ArtisanFrame_Search()
 	searchResults = {}
 	local query = strlower(ArtisanFrameSearchBox:GetText())
+    query = strtrim(query)
     local reagentsFilter = ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName]
     if query == "" and not reagentsFilter then
         ArtisanFrame_Update()
@@ -203,7 +207,13 @@ function ArtisanFrame_Search()
             else
                 if reagentsFilter and numAvailable > 0 then
                     if query ~= "" then
-                        if strfind(strlower(skillName), query, 1, true) then
+                        local words = strsplit(query, " ")
+                        if strfind(strlower(skillName), words[1], 1, true) and
+                            strfind(strlower(skillName), words[2] or "" , 1, true) and
+                            strfind(strlower(skillName), words[3] or "" , 1, true) and
+                            strfind(strlower(skillName), words[4] or "" , 1, true) and
+                            strfind(strlower(skillName), words[5] or "" , 1, true)
+                        then
                             tinsert(searchResults, i)
                         end
                     else
@@ -211,7 +221,13 @@ function ArtisanFrame_Search()
                     end
                 elseif not reagentsFilter then
                     if query ~= "" then
-                        if strfind(strlower(skillName), query, 1, true) then
+                        local words = strsplit(query, " ")
+                        if strfind(strlower(skillName), words[1], 1, true) and
+                            strfind(strlower(skillName), words[2] or "" , 1, true) and
+                            strfind(strlower(skillName), words[3] or "" , 1, true) and
+                            strfind(strlower(skillName), words[4] or "" , 1, true) and
+                            strfind(strlower(skillName), words[5] or "" , 1, true)
+                        then
                             tinsert(searchResults, i)
                         end
                     end
@@ -2005,7 +2021,7 @@ function ArtisanEditor_Search()
 	editorSearchResults = {}
 	local query = strlower(ArtisanEditorSearchBox:GetText())
     local tab = ArtisanFrame.selectedTabName
-
+    query = strtrim(query)
     if query == "" then
         ArtisanEditorLeft_Update()
         return
@@ -2017,7 +2033,13 @@ function ArtisanEditor_Search()
         local skillName = ARTISAN_UNCATEGORIZED[tab][i].name
 
         if skillName then
-            if strfind(strlower(skillName), query, 1, true) then
+            local words = strsplit(query, " ")
+            if strfind(strlower(skillName), words[1], 1, true) and
+                strfind(strlower(skillName), words[2] or "", 1, true) and
+                strfind(strlower(skillName), words[3] or "", 1, true) and
+                strfind(strlower(skillName), words[4] or "", 1, true) and
+                strfind(strlower(skillName), words[5] or "", 1, true)
+            then
                 tinsert(editorSearchResults, i)
             end
         end
