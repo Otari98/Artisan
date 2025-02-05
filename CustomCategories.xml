@@ -199,15 +199,12 @@
                         </Backdrop>
                         <Scripts>
                             <OnClick>
-                                if not ArtisanEditorSearchBox:GetText() then
+                                local box = this:GetParent()
+                                if box:GetText() == "" then
                                     return
                                 end
-                                local box = this:GetParent()
                                 box:SetText("")
-                                box:SetFocus()
                                 box:ClearFocus()
-								ArtisanEditorSearchBox:Show()
-								ArtisanEditor_Search()
                             </OnClick>
                             <OnEnter>
                                 GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
@@ -232,6 +229,7 @@
 						this:ClearFocus()
 					</OnEnterPressed>
 					<OnTextChanged>
+                        ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
 						ArtisanEditor_Search()
 					</OnTextChanged>
 					<OnEscapePressed>

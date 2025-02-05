@@ -475,15 +475,12 @@
                         </Backdrop>
                         <Scripts>
                             <OnClick>
-                                if not ArtisanFrameSearchBox:GetText() then
+                                local box = this:GetParent()
+                                if box:GetText() == "" then
                                     return
                                 end
-                                local box = this:GetParent()
                                 box:SetText("")
-                                box:SetFocus()
                                 box:ClearFocus()
-								ArtisanFrameSearchBoxIcon:Show()
-								ArtisanFrame_Search()
                             </OnClick>
                             <OnEnter>
                                 GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
@@ -513,6 +510,7 @@
 						else
 							ArtisanCollapseAllButton:Disable()
 						end
+						ArtisanListScrollFrame:SetVerticalScroll(0)
 						ArtisanFrame_Search()
 					</OnTextChanged>
 					<OnEscapePressed>

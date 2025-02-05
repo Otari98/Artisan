@@ -235,7 +235,6 @@ function ArtisanFrame_Search()
             end
         end
     end
-    ArtisanListScrollFrame:SetVerticalScroll(0)
 	ArtisanFrame_Update()
 end
 
@@ -2044,7 +2043,6 @@ function ArtisanEditor_Search()
             end
         end
     end
-    ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
 	ArtisanEditorLeft_Update()
 end
 
