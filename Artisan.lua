@@ -95,7 +95,7 @@ function printf(...)
         end
         t[i] = arg[i]
     end
-    local msg = t[1]
+    local msg = t[1] or "nil"
     if getn(t) > 1 then
         for j = 2, getn(t) do
             msg = msg..", "..t[j]
@@ -243,7 +243,6 @@ function ArtisanFrame_OnLoad()
     this:RegisterEvent("BAG_UPDATE")
     this:RegisterEvent("PLAYER_ENTERING_WORLD")
     this:RegisterEvent("UNIT_PORTRAIT_UPDATE")
-    this:RegisterEvent("TRADE_SKILL_UPDATE")
     this:RegisterEvent("CRAFT_UPDATE")
     this:RegisterEvent("UPDATE_TRADESKILL_RECAST")
     this:RegisterEvent("SPELLS_CHANGED")
