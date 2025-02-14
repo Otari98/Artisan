@@ -128,6 +128,12 @@ local function debug(a)
     DEFAULT_CHAT_FRAME:AddMessage(BLUE .."[Artisan]|r"..GREY.."["..GetTime().."]|r"..WHITE.."["..msg.."]|r")
 end
 
+local function wipe(tbl)
+    for i = getn(tbl), 1, -1 do
+        table.remove(tbl, i)
+    end
+end
+
 local function listContains(list, key, value)
     if not list then
         return false
@@ -171,21 +177,22 @@ local function strtrim(s)
 	return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
 end
 
+local splitResult = {}
 local function strsplit(str, delimiter)
-    local result = {}
+    wipe(splitResult)
     local from = 1
     local delim_from, delim_to = string.find(str, delimiter, from, true)
     while delim_from do
-        tinsert(result, string.sub(str, from, delim_from - 1))
+        tinsert(splitResult, string.sub(str, from, delim_from - 1))
         from = delim_to + 1
         delim_from, delim_to = string.find(str, delimiter, from, true)
     end
-    tinsert(result, string.sub(str, from))
-    return result
+    tinsert(splitResult, string.sub(str, from))
+    return splitResult
 end
 
 function ArtisanFrame_Search()
-	searchResults = {}
+	wipe(searchResults)
 	local query = strlower(ArtisanFrameSearchBox:GetText())
     query = strtrim(query)
     local reagentsFilter = ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName]
@@ -357,7 +364,7 @@ function ArtisanFrame_OnEvent()
 end
 
 function ArtisanFrame_Show()
-    searchResults = {}
+    wipe(searchResults)
 
     if not ArtisanFrame:IsVisible() then
         ShowUIPanel(ArtisanFrame)
@@ -532,8 +539,11 @@ function Artisan_UpdateSkillList()
         ARTISAN_SKILLS[tab] = {}
     end
 
-    ARTISAN_SKILLS[tab][sorting] = {}
-    
+    if not ARTISAN_SKILLS[tab][sorting] then
+        ARTISAN_SKILLS[tab][sorting] = {}
+    end
+    wipe(ARTISAN_SKILLS[tab][sorting])
+
     if not collapsedHeaders then
         collapsedHeaders = {}
     end
@@ -568,7 +578,7 @@ function Artisan_UpdateSkillList()
                             if not found then
                                 numHeaders = numHeaders + 1
                                 tinsert(ARTISAN_SKILLS[tab][sorting][0].childs, header)
-                                ARTISAN_SKILLS[tab][sorting][index] = {name = header, type = "header", childs = {}}
+                                tinsert(ARTISAN_SKILLS[tab][sorting], index, {name = header, type = "header", childs = {}})
                                 if not listContains(collapsedHeaders[tab][sorting], header) then
                                     ARTISAN_SKILLS[tab][sorting][index].exp = 1
                                 end
@@ -580,7 +590,7 @@ function Artisan_UpdateSkillList()
                                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(j)
                                 if strfind(strlower(name) or "", strlower(pattern)) then
                                     if ARTISAN_SKILLS[tab][sorting][headerIndex].exp == 1 then
-                                        ARTISAN_SKILLS[tab][sorting][index] = {name = "", type = "", num = 0, id = 0}
+                                        tinsert(ARTISAN_SKILLS[tab][sorting], index, {name = "", type = "", num = 0, id = 0})
                                         ARTISAN_SKILLS[tab][sorting][index].name = name
                                         ARTISAN_SKILLS[tab][sorting][index].type = type
                                         ARTISAN_SKILLS[tab][sorting][index].num = num
@@ -604,7 +614,7 @@ function Artisan_UpdateSkillList()
             for i = 1, GetNumCrafts() do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
                 if name then
-                    ARTISAN_SKILLS[tab][sorting][index] = {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0}
+                    tinsert(ARTISAN_SKILLS[tab][sorting], index, {name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0})
                     ARTISAN_SKILLS[tab][sorting][index].name = name
                     ARTISAN_SKILLS[tab][sorting][index].sub = sub
                     ARTISAN_SKILLS[tab][sorting][index].type = type
@@ -2016,7 +2026,7 @@ function ArtisanEditor_OnShow()
 end
 
 function ArtisanEditor_Search()
-	editorSearchResults = {}
+	wipe(editorSearchResults)
 	local query = strlower(ArtisanEditorSearchBox:GetText())
     local tab = ArtisanFrame.selectedTabName
     query = strtrim(query)
