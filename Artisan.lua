@@ -65,6 +65,7 @@ local TypeColor = {
     ["used"]    = { r = 0.50, g = 0.50, b = 0.50 },
     ["none"]    = { r = 0.25, g = 0.75, b = 0.25 },
 }
+
 UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
 
 local YELLOW = NORMAL_FONT_COLOR_CODE
@@ -74,37 +75,26 @@ local GREY = GRAY_FONT_COLOR_CODE
 local BLUE = "|cff0070de"
 
 function printf(...)
-    local t = {}
-    for i = 1, arg.n do
-        if arg[i] == nil then
-            arg[i] = "nil"
-        end
-        if type(arg[i] == "boolean") then
-            if arg[i] == true then
-                arg[i] = "true"
-            end
-            if arg[i] == false then
-                arg[i] = "false"
-            end
-        end
+    local size = getn(arg)
+    for i = 1, size do
+        arg[i] = tostring(arg[i])
         if type(arg[i]) == "table" then
-            arg[i] = "table"
+            if arg[i].GetName then
+                arg[i] = arg[i]:GetName()
+            end
         end
-        if type(arg[i]) == "function" then
-            arg[i] = "function"
-        end
-        t[i] = arg[i]
     end
-    local msg = t[1] or "nil"
-    if getn(t) > 1 then
-        for j = 2, getn(t) do
-            msg = msg..", "..t[j]
+    local msg = arg[1] or "nil"
+    if size > 1 then
+        for j = 2, getn(arg) do
+            msg = msg..", "..arg[j]
         end
     end
     DEFAULT_CHAT_FRAME:AddMessage(GREY.."["..GetTime().."]|r "..WHITE..msg.."|r")
 end
 
 local debugging = false
+
 local function debug(a)
     if not debugging then
         return
@@ -1950,6 +1940,14 @@ function ArtisanEditorScrollFrameLeft_OnLoad()
 end
 
 function ArtisanEditorScrollFrameRight_OnLoad()
+    local addhighlight = function(frame)
+        frame:SetScript("OnEnter", function()
+            this:GetParent():LockHighlight()
+        end)
+        frame:SetScript("OnLeave", function()
+            this:GetParent():UnlockHighlight()
+        end)
+    end
     for i = 1, 25 do
         if not listRight[i] then
             listRight[i] = CreateFrame("Button", "ArtisanEditorSkillRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
@@ -1960,28 +1958,22 @@ function ArtisanEditorScrollFrameRight_OnLoad()
             listRight[i].up:SetPoint("CENTER", "ArtisanEditorSkillRight"..i, "RIGHT", -52, 0)
             listRight[i].up:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].up:SetID(i)
+            listRight[i].up:SetParent(listRight[i])
+            addhighlight(listRight[i].up)
 
             listRight[i].down = CreateFrame("Button", "ArtisanEditorRightDown"..i, ArtisanEditor, "ArtisanRightButtonDownTemplate")
             listRight[i].down:SetPoint("RIGHT", "ArtisanEditorRightUp"..i, "RIGHT", 16, 0)
             listRight[i].down:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].down:SetID(i)
+            listRight[i].down:SetParent(listRight[i])
+            addhighlight(listRight[i].down)
 
             listRight[i].delete = CreateFrame("Button", "ArtisanEditorRightDelete"..i, ArtisanEditor, "ArtisanRightButtonDeleteTemplate")
             listRight[i].delete:SetPoint("RIGHT", "ArtisanEditorRightDown"..i, "RIGHT", 22, 0)
             listRight[i].delete:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
             listRight[i].delete:SetID(i)
-
-            local function addHighlight(button)
-                local parentButton = getglobal("ArtisanEditorSkillRight".. button:GetID())
-                button:SetScript("OnEnter", function()
-                    parentButton:LockHighlight()
-                end)
-                button:SetScript("OnLeave", function()
-                    parentButton:UnlockHighlight()
-                end)
-            end
-            
-            addHighlight(listRight[i].delete)
+            listRight[i].delete:SetParent(listRight[i])
+            addhighlight(listRight[i].delete)
         end
     end
 end
