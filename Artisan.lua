@@ -99,22 +99,7 @@ local function debug(a)
     if not debugging then
         return
     end
-    local msg = a
-    if a == nil then
-        msg = "Attempt to print a nil value."
-    elseif type(msg) == "boolean" then
-        if a then
-            msg = "true"
-        else
-            msg = "false"
-        end
-    elseif type(a) == "table" then
-        msg = "Attempt to print a table value."
-    elseif type(a) == "userdata" then
-        msg = "Attempt to print a userdata value."
-    elseif type(a) == "function" then
-        msg = "Attempt to print a function value."
-    end
+    local msg = tostring(a)
     DEFAULT_CHAT_FRAME:AddMessage(BLUE .."[Artisan]|r"..GREY.."["..GetTime().."]|r"..WHITE.."["..msg.."]|r")
 end
 
@@ -1562,7 +1547,7 @@ function Artisan_GetCraftIcon(id)
         if sorting == "default" then
             return GetTradeSkillIcon(id)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
             return GetTradeSkillIcon(originalID)
         end
     end

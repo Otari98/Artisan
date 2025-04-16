@@ -78,15 +78,9 @@
             </Anchor>
         </Anchors>
         <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
-            <BackgroundInsets>
-                <AbsInset left="11" right="12" top="12" bottom="11"/>
-            </BackgroundInsets>
-            <TileSize>
-                <AbsValue val="32"/>
-            </TileSize>
-            <EdgeSize>
-                <AbsValue val="32"/>
-            </EdgeSize>
+            <BackgroundInsets left="11" right="12" top="12" bottom="11"/>
+            <TileSize val="32"/>
+            <EdgeSize val="32"/>
             <Color r="0" g="0" b="0" a="1" />
         </Backdrop>
         <Frames>
@@ -97,14 +91,6 @@
                         <Offset x="15" y="10"/>
                     </Anchor>
                 </Anchors>
-                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
-                    <BackgroundInsets>
-                        <AbsInset left="0" right="0" top="0" bottom="0"/>
-                    </BackgroundInsets>
-                    <TileSize>
-                        <AbsValue val="32"/>
-                    </TileSize>
-                </Backdrop> -->
                 <Scripts>
                     <OnLoad>
                         ArtisanEditorScrollFrameLeft_OnLoad()
@@ -121,14 +107,6 @@
                         <Offset x="30" y="0"/>
                     </Anchor>
                 </Anchors>
-                <!-- <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
-                    <BackgroundInsets>
-                        <AbsInset left="0" right="0" top="0" bottom="0"/>
-                    </BackgroundInsets>
-                    <TileSize>
-                        <AbsValue val="32"/>
-                    </TileSize>
-                </Backdrop> -->
                 <Scripts>
                     <OnLoad>
                         ArtisanEditorScrollFrameRight_OnLoad()
@@ -165,14 +143,10 @@
                 </Scripts>
             </Button>
             <EditBox name="ArtisanEditorSearchBox" inherits="InputBoxTemplate" letters="100">
-				<Size>
-					<AbsDimension x="270" y="32" />
-				</Size>
+				<Size x="270" y="32" />
 				<Anchors>
 					<Anchor point="BOTTOMLEFT">
-						<Offset>
-							<AbsDimension x="35" y="15"/>
-						</Offset>
+						<Offset x="35" y="15"/>
 					</Anchor>
 				</Anchors>
                 <Frames>
@@ -200,11 +174,11 @@
                         <Scripts>
                             <OnClick>
                                 local box = this:GetParent()
+                                box:ClearFocus()
                                 if box:GetText() == "" then
                                     return
                                 end
                                 box:SetText("")
-                                box:ClearFocus()
                             </OnClick>
                             <OnEnter>
                                 GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT", 0, 0)
@@ -237,7 +211,7 @@
 						ArtisanEditor_Search()
 					</OnEscapePressed>
 				</Scripts>
-				<FontString name="$parentSearchString" inherits="GameFontNormal"></FontString>
+				<FontString name="$parentSearchString" inherits="GameFontNormal"/>
 			</EditBox>
         </Frames>
         <Scripts>
