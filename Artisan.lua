@@ -292,6 +292,7 @@ function ArtisanFrame_OnEvent()
     elseif event == "SPELLS_CHANGED" then
         Artisan_SetupSideTabs()
     elseif event == "PLAYER_ENTERING_WORLD" then
+        HideUIPanel(ArtisanFrame)
         SetPortraitTexture(ArtisanFramePortrait, "player")
         Artisan_Init()
     elseif event == "UNIT_PORTRAIT_UPDATE" and arg1 == "player" then
