@@ -1434,13 +1434,13 @@ function Artisan_GetItemLink(index)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
 	if ArtisanFrame.craft then
-        local originalID = ARTISAN_SKILLS[tab][sorting][index].id
+        local originalID = ARTISAN_SKILLS[tab][sorting][index] and ARTISAN_SKILLS[tab][sorting][index].id or 0
 		return GetCraftItemLink(originalID)
 	else
         if sorting ~= "custom" then
 		    return GetTradeSkillItemLink(index)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][index].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][index] and ARTISAN_SKILLS[tab][sorting][index].id or 0
             return GetTradeSkillItemLink(originalID)
         end
 	end
@@ -1450,13 +1450,13 @@ function Artisan_GetReagentItemLink(craftIndex, reagentIndex)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
     if ArtisanFrame.craft then
-        local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+        local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex] and ARTISAN_SKILLS[tab][sorting][craftIndex].id or 0
         return GetCraftReagentItemLink(originalIndex, reagentIndex)
     else
         if sorting ~= "custom" then
             return GetTradeSkillReagentItemLink(craftIndex, reagentIndex)
         else
-            local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+            local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex] and ARTISAN_SKILLS[tab][sorting][craftIndex].id or 0
             return GetTradeSkillReagentItemLink(originalIndex, reagentIndex)
         end
     end
@@ -1502,7 +1502,7 @@ function Artisan_DoCraft(numAvailable)
     local sorting = ARTISAN_CONFIG.sorting[tab]
     local skill = ArtisanFrame.selectedSkill
     if ArtisanFrame.craft then
-        local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
+        local originalID = ARTISAN_SKILLS[tab][sorting][skill] and ARTISAN_SKILLS[tab][sorting][skill].id or 0
         DoCraft(originalID)
     else
         local amount = ArtisanFrameInputBox:GetNumber()
@@ -1510,7 +1510,7 @@ function Artisan_DoCraft(numAvailable)
             amount = numAvailable
         end
         if sorting == "custom" then
-            local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][skill] and ARTISAN_SKILLS[tab][sorting][skill].id or 0
             DoTradeSkill(originalID, amount)
         else
             DoTradeSkill(skill, amount)
@@ -1536,12 +1536,12 @@ function Artisan_SelectCraft(id)
         if sorting == "default" then
             return SelectTradeSkill(id)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
             return SelectTradeSkill(originalID)
         end
     end
     if ARTISAN_SKILLS[tab][sorting][id] then
-        local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+        local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
         SelectCraft(originalID)
     end
 end
@@ -1557,7 +1557,7 @@ function Artisan_GetCraftIcon(id)
             return GetTradeSkillIcon(originalID)
         end
     end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftIcon(originalID)
 end
 
@@ -1567,7 +1567,7 @@ function Artisan_GetCraftDescription(id)
     if not ArtisanFrame.craft then
         return nil
     end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftDescription(originalID)
 end
 
@@ -1578,11 +1578,11 @@ function Artisan_GetCraftNumReagents(id)
         if sorting == "default" then
             return GetTradeSkillNumReagents(id)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
             return GetTradeSkillNumReagents(originalID)
         end
     end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftNumReagents(originalID)
 end
 
@@ -1593,11 +1593,11 @@ function Artisan_GetCraftReagentInfo(id, i)
         if sorting == "default" then
             return GetTradeSkillReagentInfo(id, i)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
             return GetTradeSkillReagentInfo(originalID, i)
         end
     end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftReagentInfo(originalID, i)
 end
 
@@ -1608,11 +1608,11 @@ function Artisan_GetCraftTools(id)
         if sorting == "default" then
             return GetTradeSkillTools(id)
         else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
             return GetTradeSkillTools(originalID)
         end
     end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id].id
+    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftSpellFocus(originalID)
 end
 
