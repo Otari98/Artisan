@@ -20,23 +20,24 @@ BINDING_NAME_ARTISAN_CREATE_ALL = "Create All"
 
 local professions = {
     ["primary"] = {
-        ["Alchemy"]=true,
-        ["Blacksmithing"]=true,
-        ["Leatherworking"]=true,
-        ["Tailoring"]=true,
-        ["Engineering"]=true,
-        ["Jewelcrafting"]=true,
-        ["Enchanting"]=true,
-        ["Smelting"]=true,
+        ["Alchemy"] = true,
+        ["Blacksmithing"] = true,
+        ["Leatherworking"] = true,
+        ["Tailoring"] = true,
+        ["Engineering"] = true,
+        ["Jewelcrafting"] = true,
+        ["Enchanting"] = true,
+        ["Smelting"] = true,
     },
     ["secondary"] = {
-        ["First Aid"]=true,
-        ["Cooking"]=true,
-        ["Survival"]=true,
+        ["First Aid"] = true,
+        ["Cooking"] = true,
+        ["Survival"] = true,
     },
     ["special"] = {
-        ["Beast Training"]=true,
-        ["Poisons"]=true,
+        ["Beast Training"] = true,
+        ["Poisons"] = true,
+        ["Disguise"] = true,
     }
 }
 
@@ -190,12 +191,14 @@ function ArtisanFrame_Search()
                 if reagentsFilter and numAvailable > 0 then
                     if query ~= "" then
                         local words = strsplit(query, " ")
-                        if strfind(strlower(skillName), words[1], 1, true) and
-                            strfind(strlower(skillName), words[2] or "" , 1, true) and
-                            strfind(strlower(skillName), words[3] or "" , 1, true) and
-                            strfind(strlower(skillName), words[4] or "" , 1, true) and
-                            strfind(strlower(skillName), words[5] or "" , 1, true)
-                        then
+                        local match = true
+                        for _, w in ipairs(words) do
+                            if not strfind(strlower(skillName), w, 1, true) then
+                                match = false
+                                break
+                            end
+                        end
+                        if match then
                             tinsert(searchResults, i)
                         end
                     else
@@ -204,12 +207,14 @@ function ArtisanFrame_Search()
                 elseif not reagentsFilter then
                     if query ~= "" then
                         local words = strsplit(query, " ")
-                        if strfind(strlower(skillName), words[1], 1, true) and
-                            strfind(strlower(skillName), words[2] or "" , 1, true) and
-                            strfind(strlower(skillName), words[3] or "" , 1, true) and
-                            strfind(strlower(skillName), words[4] or "" , 1, true) and
-                            strfind(strlower(skillName), words[5] or "" , 1, true)
-                        then
+                        local match = true
+                        for _, w in ipairs(words) do
+                            if not strfind(strlower(skillName), w, 1, true) then
+                                match = false
+                                break
+                            end
+                        end
+                        if match then
                             tinsert(searchResults, i)
                         end
                     end
@@ -315,7 +320,7 @@ function ArtisanFrame_OnEvent()
         CloseTradeSkill()
         ArtisanFrame_Show()
     elseif event == "TRADE_SKILL_CLOSE" or event == "CRAFT_CLOSE" then
-        if GetCraftName() ~= "Beast Training" and GetCraftDisplaySkillLine() ~= "Enchanting" and GetTradeSkillLine() == "UNKNOWN" then
+        if GetCraftName() ~= "Beast Training" and GetCraftName() ~= "Disguise" and GetCraftDisplaySkillLine() ~= "Enchanting" and GetTradeSkillLine() == "UNKNOWN" then
             ArtisanFrame.selectedTabName = nil
         end
         if not ArtisanFrame.selectedTabName then
@@ -432,7 +437,7 @@ function Artisan_SetupSideTabs()
             i = i + 1
         end
     end
-    -- beast training / poisons
+    -- beast training / poisons / disguise
     for index = 1, getn(playerProfessions) do
         if listContains(professions["special"], playerProfessions[index].name) then
             tab = getglobal("ArtisanFrameSideTab"..i)
@@ -452,7 +457,7 @@ function Artisan_SetupSideTabs()
             local active = IsCurrentCast(s, "SPELL")
             if active then
                 ArtisanFrame.selectedTabName = spellName
-                if spellName == "Beast Training" or spellName == "Enchanting" then
+                if spellName == "Beast Training" or spellName == "Enchanting" or spellName == "Disguise" then
                     ArtisanFrame.craft = true
                 else
                     ArtisanFrame.craft = false
@@ -585,7 +590,7 @@ function Artisan_UpdateSkillList()
                     end
                 end
             end
-        elseif tab == "Beast Training" then
+        elseif tab == "Beast Training" or tab == "Disguise" then
             local index = 1
             for i = 1, GetNumCrafts() do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
@@ -708,7 +713,7 @@ function ArtisanFrame_Update()
 		ArtisanRankFrame:SetValue(rank)
 		ArtisanRankFrameSkillRank:SetText(rank.."/"..maxRank)
         ArtisanFrameTitleText:Hide()
-    else -- Beast Training
+    else -- Beast Training / Disguise
         ArtisanFrameTitleText:SetText(GetCraftName())
         ArtisanFrameTitleText:Show()
         ArtisanRankFrame:Hide()
@@ -1200,7 +1205,7 @@ function ArtisanSideTab_OnCLick()
     end
     
     if this.name ~= ArtisanFrame.selectedTabName then
-        if this.name == "Enchanting" or this.name == "Beast Training" then
+        if this.name == "Enchanting" or this.name == "Beast Training" or this.name == "Disguise" then
             ArtisanFrame.craft = true
         else
             ArtisanFrame.craft = false
@@ -1469,7 +1474,7 @@ function Artisan_GetFirstCraft()
         return GetFirstTradeSkill()
     end
 
-    if tab == "Beast Training" then
+    if tab == "Beast Training" or tab == "Disguise" then
         if sorting == "default" then
             return 1
         end
