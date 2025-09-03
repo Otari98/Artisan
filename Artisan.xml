@@ -21,6 +21,7 @@
 							<Offset x="13" y="0"/>
 						</Anchor>
 					</Anchors>
+					<TexCoords left="0.078125" right="0.90625" top="0.078125" bottom="0.90625"/>
 				</Texture>
 			</Layer>
 		</Layers>
@@ -945,13 +946,23 @@
 					</OnClick>
 				</Scripts>
 			</CheckButton>
-			<Button name="ArtisanFrameEditButton" text="Edit" inherits="UIPanelButtonTemplate2" hidden="true">
-				<Size x="60" y="32"/>
+			<Button name="ArtisanFrameEditButton" hidden="true">
+				<Size x="20" y="20"/>
 				<Anchors>
 					<Anchor point="TOPRIGHT">
-						<Offset x="-38" y="-50"/>
+						<Offset x="-48" y="-62"/>
 					</Anchor>
 				</Anchors>
+                <NormalTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Up"/>
+                <HighlightTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled" alphaMode="ADD"/>
+                <PushedTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Up">
+                    <Size x="20" y="20"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT">
+                            <Offset x="-1" y="-2"/>
+                        </Anchor>
+                    </Anchors>
+                </PushedTexture>
 				<Scripts>
 					<OnLoad>
 						this:SetFrameLevel(ArtisanSortCustom:GetFrameLevel() + 1)

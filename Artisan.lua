@@ -1,3 +1,4 @@
+local _G = _G or getfenv(0)
 local maxCraftReagents = 8
 local craftSkillHeight = 16
 local craftsDisplayed = 12
@@ -75,43 +76,29 @@ local GREEN = GREEN_FONT_COLOR_CODE
 local GREY = GRAY_FONT_COLOR_CODE
 local BLUE = "|cff0070de"
 
-function printf(...)
+print = print or function(...)
     local size = getn(arg)
     for i = 1, size do
         arg[i] = tostring(arg[i])
-        if type(arg[i]) == "table" then
-            if arg[i].GetName then
-                arg[i] = arg[i]:GetName()
-            end
-        end
     end
-    local msg = arg[1] or "nil"
-    if size > 1 then
-        for j = 2, getn(arg) do
-            msg = msg..", "..arg[j]
-        end
-    end
-    DEFAULT_CHAT_FRAME:AddMessage(GREY.."["..GetTime().."]|r "..WHITE..msg.."|r")
+    local msg = size > 1 and table.concat(arg, ", ") or tostring(arg[1])
+    DEFAULT_CHAT_FRAME:AddMessage(msg)
+    return msg
 end
 
-local debugging = false
-
-local function debug(a)
-    if not debugging then
-        return
-    end
-    local msg = tostring(a)
-    DEFAULT_CHAT_FRAME:AddMessage(BLUE .."[Artisan]|r"..GREY.."["..GetTime().."]|r"..WHITE.."["..msg.."]|r")
-end
+local getn = table.getn
+local tinsert = table.insert
+local tremove = table.remove
 
 local function wipe(tbl)
+	if type(tbl) ~= "table" then return end
     for i = getn(tbl), 1, -1 do
-        table.remove(tbl, i)
+        tremove(tbl, i)
     end
 end
 
 local function listContains(list, key, value)
-    if not list then
+    if type(list) ~= "table" then
         return false
     end
     if not key and value then
@@ -128,14 +115,14 @@ local function listContains(list, key, value)
 end
 
 local function addToList(list, key)
-    if not list or not key then
+    if type(list) ~= "table" or not key then
         return false
     end
     list[key] = true
 end
 
 local function getkey(list, value)
-    if not list or not value then
+    if type(list) ~= "table" or not value then
         return nil
     end
     for key, data in pairs(list) do
@@ -144,10 +131,6 @@ local function getkey(list, value)
         end
     end
 end
-
-local getn = table.getn
-local tinsert = table.insert
-local tremove = table.remove
 
 local function strtrim(s)
 	return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
@@ -263,7 +246,7 @@ function Artisan_Init()
     if ArtisanFrame then
         local tradeSkillOnMouseUp = TradeSkillReagent1:GetScript("OnMouseUp")
         for i = 1, maxCraftReagents do
-            getglobal("ArtisanReagent"..i):SetScript("OnMouseUp", tradeSkillOnMouseUp)
+            _G["ArtisanReagent"..i]:SetScript("OnMouseUp", tradeSkillOnMouseUp)
         end
     end
 
@@ -311,6 +294,13 @@ function ArtisanFrame_OnEvent()
             this.tick = GetTime() + 0.1
         end
         Artisan_SetupSideTabs()
+		if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "custom" then
+			ArtisanEditor_OnShow()
+			Artisan_UpdateSkillList()
+			if ArtisanEditor:IsShown() then
+				ArtisanEditor_Search()
+			end
+		end
         Artisan_Reselect()
 		ArtisanFrame_Search()
     elseif event == "TRADE_SKILL_SHOW" then
@@ -420,7 +410,7 @@ function Artisan_SetupSideTabs()
     -- primary professions first
     for index = 1, getn(playerProfessions) do
         if listContains(professions["primary"], playerProfessions[index].name) then
-            tab = getglobal("ArtisanFrameSideTab"..i)
+            tab = _G["ArtisanFrameSideTab"..i]
             tab.name = playerProfessions[index].name
             tab:SetNormalTexture(playerProfessions[index].tex)
             tab:Show()
@@ -430,7 +420,7 @@ function Artisan_SetupSideTabs()
     -- secondary professions
     for index = 1, getn(playerProfessions) do
         if listContains(professions["secondary"], playerProfessions[index].name) then
-            tab = getglobal("ArtisanFrameSideTab"..i)
+            tab = _G["ArtisanFrameSideTab"..i]
             tab.name = playerProfessions[index].name
             tab:SetNormalTexture(playerProfessions[index].tex)
             tab:Show()
@@ -440,7 +430,7 @@ function Artisan_SetupSideTabs()
     -- beast training / poisons / disguise
     for index = 1, getn(playerProfessions) do
         if listContains(professions["special"], playerProfessions[index].name) then
-            tab = getglobal("ArtisanFrameSideTab"..i)
+            tab = _G["ArtisanFrameSideTab"..i]
             tab.name = playerProfessions[index].name
             tab:SetNormalTexture(playerProfessions[index].tex)
             tab:Show()
@@ -468,11 +458,11 @@ function Artisan_SetupSideTabs()
     end
     -- glow 
     for id = 1, maxTabs do
-        tab = getglobal("ArtisanFrameSideTab"..id)
+        tab = _G["ArtisanFrameSideTab"..id]
         if tab.name == ArtisanFrame.selectedTabName then
-            getglobal("ArtisanFrameSideTab"..id):SetChecked(1)
+            _G["ArtisanFrameSideTab"..id]:SetChecked(1)
         else
-            getglobal("ArtisanFrameSideTab"..id):SetChecked(nil)
+            _G["ArtisanFrameSideTab"..id]:SetChecked(nil)
         end
     end
     if not ARTISAN_CONFIG.sorting then
@@ -692,7 +682,7 @@ function ArtisanFrame_Update()
     headers = Artisan_UpdateSkillList()
     if ArtisanFrame.craft then
         ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
-        ArtisanFrameCreateButton:SetText(getglobal(GetCraftButtonToken()))
+        ArtisanFrameCreateButton:SetText(_G[GetCraftButtonToken()])
         ArtisanFrameCreateAllButton:Hide()
         ArtisanFrameDecrementButton:Hide()
         ArtisanFrameInputBox:Hide()
@@ -727,7 +717,7 @@ function ArtisanFrame_Update()
         ArtisanCraftDescription:SetText("")
         ArtisanCraftCost:SetText("")
 		for i = 1, maxCraftReagents do
-			getglobal("ArtisanReagent"..i):Hide()
+			_G["ArtisanReagent"..i]:Hide()
 		end
 	else
 		ArtisanSkillName:Show()
@@ -769,10 +759,10 @@ function ArtisanFrame_Update()
         end
 
         local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost = Artisan_GetCraftInfo(craftIndex)
-        local craftButton = getglobal("ArtisanFrameSkill"..i)
-        local craftButtonSubText = getglobal("ArtisanFrameSkill"..i.."SubText")
-        local craftButtonCost = getglobal("ArtisanFrameSkill"..i.."Cost")
-        local craftButtonIcon = getglobal("ArtisanFrameSkill"..i.."Icon")
+        local craftButton = _G["ArtisanFrameSkill"..i]
+        local craftButtonSubText = _G["ArtisanFrameSkill"..i.."SubText"]
+        local craftButtonCost = _G["ArtisanFrameSkill"..i.."Cost"]
+        local craftButtonIcon = _G["ArtisanFrameSkill"..i.."Icon"]
         local indent = " "
         if ARTISAN_CONFIG.icons then
             indent = "   "
@@ -807,7 +797,7 @@ function ArtisanFrame_Update()
                 else
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
                 end
-                getglobal("ArtisanFrameSkill"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+                _G["ArtisanFrameSkill"..i.."Highlight"]:SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
                 craftButton:UnlockHighlight()
                 craftButtonIcon:SetTexture("")
             else
@@ -817,7 +807,7 @@ function ArtisanFrame_Update()
                 else
                     craftButtonIcon:SetTexture("")
                 end
-                getglobal("ArtisanFrameSkill"..i.."Highlight"):SetTexture("")
+                _G["ArtisanFrameSkill"..i.."Highlight"]:SetTexture("")
                 if craftName then
                     -- remove (Rank) from name
                     craftName = gsub(craftName, "  %(Rank %d+%)", "")
@@ -967,9 +957,9 @@ function Artisan_SetSelection(id)
     local numReagents = Artisan_GetCraftNumReagents(id)
     for i=1, numReagents, 1 do
         local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan_GetCraftReagentInfo(id, i)
-        local reagent = getglobal("ArtisanReagent"..i)
-        local name = getglobal("ArtisanReagent"..i.."Name")
-        local count = getglobal("ArtisanReagent"..i.."Count")
+        local reagent = _G["ArtisanReagent"..i]
+        local name = _G["ArtisanReagent"..i.."Name"]
+        local count = _G["ArtisanReagent"..i.."Count"]
         if ( not reagentName or not reagentTexture ) then
             reagent:Hide()
         else
@@ -1009,7 +999,7 @@ function Artisan_SetSelection(id)
     end
 
     for i=numReagents + 1, maxCraftReagents, 1 do
-        getglobal("ArtisanReagent"..i):Hide()
+        _G["ArtisanReagent"..i]:Hide()
     end
 
     local tools = BuildColoredListString(Artisan_GetCraftTools(id))
@@ -1218,7 +1208,7 @@ function ArtisanSideTab_OnCLick()
     end
 
     for i = 1, maxTabs do
-        local tab = getglobal("ArtisanFrameSideTab"..i)
+        local tab = _G["ArtisanFrameSideTab"..i]
         if this:GetID() == i then
             tab:SetChecked(1)
         else
@@ -1391,7 +1381,9 @@ function Artisan_ExpandCraftSkillLine(id)
         ArtisanFrame_Search()
         return
     end
-
+	if not ARTISAN_SKILLS[tab][sorting][id].childs then
+		return
+	end
     local headerName = ARTISAN_SKILLS[tab][sorting][id].name
     local offset = getn(ARTISAN_SKILLS[tab][sorting][id].childs) or 0
 
@@ -1704,25 +1696,24 @@ function ArtisanEditorRightButton_OnClick()
 end
 
 function ArtisanRightButtonUp_OnClick()
-    local thisButton = getglobal("ArtisanEditorSkillRight"..this:GetID())
-    local prevButton = getglobal("ArtisanEditorSkillRight"..this:GetID() - 1)
+    local thisButton = _G["ArtisanEditorSkillRight"..this:GetID()]
     local craftIndex = thisButton:GetID()
+	local prevIndex = craftIndex - 1
     local tabName = ArtisanFrame.selectedTabName
     local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
-    ArtisanEditor.currentHeader = nil
-    if (craftIndex and craftIndex > 1) then
-        if thisButton.type ~= "header" then
-            local prevIndex = craftIndex - 1
+	local currentHeaderName
+	if ArtisanEditor.currentHeader then
+		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
+	end
 
-            if prevButton.type == "header" and prevIndex == 1 then
-                return
-            end
+    if (craftIndex and craftIndex > 2) then
+        if thisButton.type ~= "header" then
 
             local temp = ARTISAN_CUSTOM[tabName][craftIndex]
             ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][prevIndex]
             ARTISAN_CUSTOM[tabName][prevIndex] = temp
 
-            if prevButton.type ~= "header" then
+            if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
                 ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
                 for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                     if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
@@ -1735,7 +1726,7 @@ function ArtisanRightButtonUp_OnClick()
                 ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
                 for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                     if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex - 1 then
+                        if ARTISAN_CUSTOM[tabName][i].parent == prevIndex then
                             ARTISAN_CUSTOM[tabName][i].parent = craftIndex
                         end
                     end
@@ -1752,13 +1743,16 @@ function ArtisanRightButtonUp_OnClick()
                         end
                     end
                 end
+				if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == prevIndex then
+					ArtisanEditor.currentHeader = ArtisanEditor.currentHeader + 1
+				end
             end
         else
-            local headerAbove
-            if ARTISAN_CUSTOM[tabName][craftIndex - 1].type ~= "header" then
-                headerAbove = ARTISAN_CUSTOM[tabName][craftIndex - 1].parent
+			local headerAbove
+            if ARTISAN_CUSTOM[tabName][prevIndex].type ~= "header" then
+                headerAbove = ARTISAN_CUSTOM[tabName][prevIndex].parent
             else
-                headerAbove = craftIndex - 1
+                headerAbove = prevIndex
             end
             local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
             local temp = {}
@@ -1778,26 +1772,36 @@ function ArtisanRightButtonUp_OnClick()
                 end
             end
         end
+		if currentHeaderName then
+			for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+				if v.name == currentHeaderName then
+					ArtisanEditor.currentHeader = k
+				end
+			end
+		end
         ArtisanEditorRight_Update()
     end
 end
 
 function ArtisanRightButtonDown_OnClick()
-    local thisButton = getglobal("ArtisanEditorSkillRight"..this:GetID())
-    local nextButton = getglobal("ArtisanEditorSkillRight"..this:GetID() + 1)
+    local thisButton = _G["ArtisanEditorSkillRight"..this:GetID()]
     local craftIndex = thisButton:GetID()
+	local nextIndex = craftIndex + 1
     local tabName = ArtisanFrame.selectedTabName
     local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
     local numSkills = getn(ARTISAN_CUSTOM[tabName])
-    ArtisanEditor.currentHeader = nil
+	local currentHeaderName
+	if ArtisanEditor.currentHeader then
+		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
+	end
+
     if (craftIndex and craftIndex < numSkills) then
         if thisButton.type ~= "header" then
-            local nextIndex = craftIndex + 1
             local temp = ARTISAN_CUSTOM[tabName][craftIndex]
             ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][nextIndex]
             ARTISAN_CUSTOM[tabName][nextIndex] = temp
 
-            if nextButton.type ~= "header" then
+            if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
                 ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
                 for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                     if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
@@ -1809,7 +1813,7 @@ function ArtisanRightButtonDown_OnClick()
                 ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
                 for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                     if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex + 1 then
+                        if ARTISAN_CUSTOM[tabName][i].parent == nextIndex then
                             ARTISAN_CUSTOM[tabName][i].parent = craftIndex
                         end
                     end
@@ -1829,10 +1833,10 @@ function ArtisanRightButtonDown_OnClick()
             end
         else
             local headerBelow
-            if ARTISAN_CUSTOM[tabName][craftIndex + 1].type ~= "header" then
+            if ARTISAN_CUSTOM[tabName][nextIndex].type ~= "header" then
                 headerBelow = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
             else
-                headerBelow = craftIndex + 1
+                headerBelow = nextIndex
             end
 
             if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
@@ -1859,15 +1863,25 @@ function ArtisanRightButtonDown_OnClick()
                 end
             end
         end
+		if currentHeaderName then
+			for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+				if v.name == currentHeaderName then
+					ArtisanEditor.currentHeader = k
+				end
+			end
+		end
         ArtisanEditorRight_Update()
     end
 end
 
 function ArtisanRightButtonDelete_OnClick()
-    ArtisanEditor.currentHeader = nil
     local tabName = ArtisanFrame.selectedTabName
-    local button = getglobal("ArtisanEditorSkillRight"..this:GetID())
+    local button = _G["ArtisanEditorSkillRight"..this:GetID()]
     local craftIndex = button:GetID()
+	local currentHeaderName
+	if ArtisanEditor.currentHeader then
+		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
+	end
     local name, type, num, sub, tp, lvl, id, parentIndex = button.name, button.type, button.num, button.sub, button.tp, button.lvl, button.id, button.parent
     if button.type ~= "header" then
         -- move this skill to the left table
@@ -1902,10 +1916,6 @@ function ArtisanRightButtonDelete_OnClick()
                 tremove(ARTISAN_CUSTOM[tabName], i)
             end
         end
-        -- deselect
-        if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == craftIndex then
-            ArtisanEditor.currentHeader = nil
-        end
         -- decrement parent index for skills below by the number of childs + 1
         for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
             if v.parent and v.parent > craftIndex then
@@ -1914,6 +1924,14 @@ function ArtisanRightButtonDelete_OnClick()
         end
     end
     tremove(ARTISAN_CUSTOM[tabName], craftIndex)
+	if currentHeaderName then
+		ArtisanEditor.currentHeader = nil
+		for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+			if v.name == currentHeaderName then
+				ArtisanEditor.currentHeader = k
+			end
+		end
+	end
     table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
     ArtisanEditor_Search()
     ArtisanEditorRight_Update()
@@ -1943,25 +1961,25 @@ function ArtisanEditorScrollFrameRight_OnLoad()
         if not listRight[i] then
             listRight[i] = CreateFrame("Button", "ArtisanEditorSkillRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
             listRight[i]:SetPoint("TOPRIGHT", ArtisanEditor, -30 , -30 - ((i - 1) * craftSkillHeight))
-            getglobal("ArtisanEditorSkillRight"..i.."Text"):SetWidth(210)
+            _G["ArtisanEditorSkillRight"..i.."Text"]:SetWidth(210)
             
             listRight[i].up = CreateFrame("Button", "ArtisanEditorRightUp"..i, ArtisanEditor, "ArtisanRightButtonUpTemplate")
             listRight[i].up:SetPoint("CENTER", "ArtisanEditorSkillRight"..i, "RIGHT", -52, 0)
-            listRight[i].up:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
+            listRight[i].up:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
             listRight[i].up:SetID(i)
             listRight[i].up:SetParent(listRight[i])
             addhighlight(listRight[i].up)
 
             listRight[i].down = CreateFrame("Button", "ArtisanEditorRightDown"..i, ArtisanEditor, "ArtisanRightButtonDownTemplate")
             listRight[i].down:SetPoint("RIGHT", "ArtisanEditorRightUp"..i, "RIGHT", 16, 0)
-            listRight[i].down:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
+            listRight[i].down:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
             listRight[i].down:SetID(i)
             listRight[i].down:SetParent(listRight[i])
             addhighlight(listRight[i].down)
 
             listRight[i].delete = CreateFrame("Button", "ArtisanEditorRightDelete"..i, ArtisanEditor, "ArtisanRightButtonDeleteTemplate")
             listRight[i].delete:SetPoint("RIGHT", "ArtisanEditorRightDown"..i, "RIGHT", 22, 0)
-            listRight[i].delete:SetFrameLevel(getglobal("ArtisanEditorSkillRight"..i):GetFrameLevel() + 1)
+            listRight[i].delete:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
             listRight[i].delete:SetID(i)
             listRight[i].delete:SetParent(listRight[i])
             addhighlight(listRight[i].delete)
@@ -1970,7 +1988,7 @@ function ArtisanEditorScrollFrameRight_OnLoad()
 end
 
 function ArtisanEditor_OnShow()
-    ArtisanEditor.currentHeader = nil
+    -- ArtisanEditor.currentHeader = nil
     local sorting = ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName]
     if not ARTISAN_SKILLS[ArtisanFrame.selectedTabName][sorting] then
         return
@@ -1982,10 +2000,7 @@ function ArtisanEditor_OnShow()
     if not ARTISAN_CUSTOM[tabName] then
         ARTISAN_CUSTOM[tabName] = {}
     end
-    for k in pairs(ARTISAN_UNCATEGORIZED[tabName]) do
-        ARTISAN_UNCATEGORIZED[tabName][k] = nil
-    end
-    table.setn(ARTISAN_UNCATEGORIZED[tabName],0)
+	wipe(ARTISAN_UNCATEGORIZED[tabName])
 
     for i = 1, C_GetNumCrafts() do
         local name, type, num, exp, sub, tp, lvl = C_GetCraftInfo(i)
@@ -1993,7 +2008,20 @@ function ArtisanEditor_OnShow()
         if sub and sub ~= "" then
             name = name.."  "..format(TEXT(PARENS_TEMPLATE), sub)
         end
-        if type ~= "header" then
+		local exists = false
+		for k, v in pairs(ARTISAN_UNCATEGORIZED[tabName]) do
+			if v.name == name then
+				exists = true
+				break
+			end
+		end
+		-- orignial ids might have changed, make sure they are correct for custom categories
+		for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+			if v.name == name then
+				v.id = id
+			end
+		end
+        if type ~= "header" and not exists then
             tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
             for k in pairs(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][k].name == name then
@@ -2004,8 +2032,8 @@ function ArtisanEditor_OnShow()
         end
     end
     table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
-    ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
-    ArtisanEditorScrollFrameRight:SetVerticalScroll(0)
+    -- ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
+    -- ArtisanEditorScrollFrameRight:SetVerticalScroll(0)
 end
 
 function ArtisanEditor_Search()
@@ -2071,8 +2099,8 @@ function ArtisanEditorLeft_Update()
             local trainingPointCost = ARTISAN_UNCATEGORIZED[tabName][craftIndex].tp
             local requiredLevel = ARTISAN_UNCATEGORIZED[tabName][craftIndex].lvl
             local originalID = ARTISAN_UNCATEGORIZED[tabName][craftIndex].id
-            local craftButton = getglobal("ArtisanEditorSkillLeft"..buttonIndex)
-            local icon = getglobal("ArtisanEditorSkillLeft"..buttonIndex.."Icon")
+            local craftButton = _G["ArtisanEditorSkillLeft"..buttonIndex]
+            local icon = _G["ArtisanEditorSkillLeft"..buttonIndex.."Icon"]
             craftButton.name = craftName
             craftButton.type = craftType
             craftButton.num = numAvailable
@@ -2096,10 +2124,10 @@ function ArtisanEditorLeft_Update()
             else
                 icon:SetTexture("")
             end
-            getglobal("ArtisanEditorSkillLeft"..buttonIndex.."Highlight"):SetTexture("")
+            _G["ArtisanEditorSkillLeft"..buttonIndex.."Highlight"]:SetTexture("")
             craftButton:Show()
         else
-            getglobal("ArtisanEditorSkillLeft"..i):Hide()
+            _G["ArtisanEditorSkillLeft"..i]:Hide()
         end
         buttonIndex = buttonIndex + 1
     end
@@ -2127,8 +2155,8 @@ function ArtisanEditorRight_Update()
             local trainingPointCost = ARTISAN_CUSTOM[tabName][craftIndex].tp
             local requiredLevel = ARTISAN_CUSTOM[tabName][craftIndex].lvl
             local originalID = ARTISAN_CUSTOM[tabName][craftIndex].id
-            local craftButton = getglobal("ArtisanEditorSkillRight"..buttonIndex)
-            local icon = getglobal("ArtisanEditorSkillRight"..buttonIndex.."Icon")
+            local craftButton = _G["ArtisanEditorSkillRight"..buttonIndex]
+            local icon = _G["ArtisanEditorSkillRight"..buttonIndex.."Icon"]
             craftButton.name = craftName
             craftButton.type = craftType
             craftButton.num = numAvailable
@@ -2145,11 +2173,11 @@ function ArtisanEditorRight_Update()
             if craftType ~= "header" then
                 craftButton:SetText(indent..craftName)
                 craftButton:SetNormalTexture("")
-                getglobal("ArtisanEditorSkillRight"..buttonIndex.."Highlight"):SetTexture("")
+                _G["ArtisanEditorSkillRight"..buttonIndex.."Highlight"]:SetTexture("")
                 if craftButton.parent and craftButton.parent == ArtisanEditor.currentHeader then
-                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Show()
+                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Show()
                 else
-                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Hide()
+                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Hide()
                 end
                 if ARTISAN_CONFIG.icons then
                     if ArtisanFrame.craft then
@@ -2165,22 +2193,22 @@ function ArtisanEditorRight_Update()
                 icon:SetTexture("")
                 if ArtisanEditor.currentHeader == craftIndex then
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Show()
+                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Show()
                 else
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                    getglobal("ArtisanEditorSkillRight"..buttonIndex.."Background"):Hide()
+                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Hide()
                 end
-                getglobal("ArtisanEditorSkillRight"..i.."Highlight"):SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+                _G["ArtisanEditorSkillRight"..i.."Highlight"]:SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
             end
             craftButton:Show()
-            getglobal("ArtisanEditorRightDelete"..i):Show()
-            getglobal("ArtisanEditorRightUp"..i):Show()
-            getglobal("ArtisanEditorRightDown"..i):Show()
+            _G["ArtisanEditorRightDelete"..i]:Show()
+            _G["ArtisanEditorRightUp"..i]:Show()
+            _G["ArtisanEditorRightDown"..i]:Show()
         else
-            getglobal("ArtisanEditorSkillRight"..i):Hide()
-            getglobal("ArtisanEditorRightDelete"..i):Hide()
-            getglobal("ArtisanEditorRightUp"..i):Hide()
-            getglobal("ArtisanEditorRightDown"..i):Hide()
+            _G["ArtisanEditorSkillRight"..i]:Hide()
+            _G["ArtisanEditorRightDelete"..i]:Hide()
+            _G["ArtisanEditorRightUp"..i]:Hide()
+            _G["ArtisanEditorRightDown"..i]:Hide()
         end
         buttonIndex = buttonIndex + 1
     end
@@ -2208,18 +2236,18 @@ StaticPopupDialogs["ARTISAN_NEW_CATEGORY"] = {
     button2 = TEXT(CANCEL),
     hasEditBox = 1,
     OnShow = function()
-        getglobal(this:GetName().."EditBox"):SetFocus()
-        getglobal(this:GetName().."EditBox"):SetText("")
-        getglobal(this:GetName() .. "EditBox"):SetScript("OnEnterPressed", function()
+        _G[this:GetName().."EditBox"]:SetFocus()
+        _G[this:GetName().."EditBox"]:SetText("")
+        _G[this:GetName() .. "EditBox"]:SetScript("OnEnterPressed", function()
             StaticPopup1Button1:Click()
         end)
-        getglobal(this:GetName() .. "EditBox"):SetScript("OnEscapePressed", function()
-            getglobal(this:GetParent():GetName() .. "EditBox"):SetText("")
+        _G[this:GetName() .. "EditBox"]:SetScript("OnEscapePressed", function()
+            _G[this:GetParent():GetName() .. "EditBox"]:SetText("")
             StaticPopup1Button2:Click()
         end)
     end,
     OnAccept = function()
-        ArtisanEditor_AddCategory(getglobal(this:GetParent():GetName() .. "EditBox"):GetText())
+        ArtisanEditor_AddCategory(_G[this:GetParent():GetName() .. "EditBox"]:GetText())
     end,
     timeout = 0,
     whileDead = 1,
@@ -2232,18 +2260,18 @@ StaticPopupDialogs["ARTISAN_RENAME_CATEGORY"] = {
     button2 = TEXT(CANCEL),
     hasEditBox = 1,
     OnShow = function()
-        getglobal(this:GetName().."EditBox"):SetFocus()
-        getglobal(this:GetName().."EditBox"):SetText("")
-        getglobal(this:GetName() .. "EditBox"):SetScript("OnEnterPressed", function()
+        _G[this:GetName().."EditBox"]:SetFocus()
+        _G[this:GetName().."EditBox"]:SetText("")
+        _G[this:GetName() .. "EditBox"]:SetScript("OnEnterPressed", function()
             StaticPopup1Button1:Click()
         end)
-        getglobal(this:GetName() .. "EditBox"):SetScript("OnEscapePressed", function()
-            getglobal(this:GetParent():GetName() .. "EditBox"):SetText("")
+        _G[this:GetName() .. "EditBox"]:SetScript("OnEscapePressed", function()
+            _G[this:GetParent():GetName() .. "EditBox"]:SetText("")
             StaticPopup1Button2:Click()
         end)
     end,
     OnAccept = function()
-        ArtisanEditor_RenameCategory(getglobal(this:GetParent():GetName() .. "EditBox"):GetText())
+        ArtisanEditor_RenameCategory(_G[this:GetParent():GetName() .. "EditBox"]:GetText())
     end,
     timeout = 0,
     whileDead = 1,
