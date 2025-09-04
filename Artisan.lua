@@ -473,7 +473,7 @@ end
 
 local function C_GetNumCrafts()
     if not ArtisanFrame.craft then
-        for i = 1, GetNumTradeSkills() do
+        for i = GetNumTradeSkills(), 1, -1 do
             local _, type = GetTradeSkillInfo(i)
             if type == "header" then
                 ExpandTradeSkillSubClass(i)
