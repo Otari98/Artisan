@@ -392,7 +392,9 @@ function Artisan_SetupSideTabs()
             listContains(professions["secondary"], spellName) or
             listContains(professions["special"], spellName) then
             local texture = GetSpellTexture(spell, "SPELL")
-            playerProfessions[i] = {}
+			if not playerProfessions[i] then
+				playerProfessions[i] = {}
+			end
             playerProfessions[i].name = spellName
             playerProfessions[i].tex = texture
             i = i + 1
@@ -474,8 +476,8 @@ end
 local function C_GetNumCrafts()
     if not ArtisanFrame.craft then
         for i = GetNumTradeSkills(), 1, -1 do
-            local _, type = GetTradeSkillInfo(i)
-            if type == "header" then
+            local _, type, _, isExpanded = GetTradeSkillInfo(i)
+            if type == "header" and not isExpanded then
                 ExpandTradeSkillSubClass(i)
             end
         end
@@ -606,9 +608,8 @@ function Artisan_UpdateSkillList()
         end
         if next(ARTISAN_UNCATEGORIZED[tab]) then
             local isExpanded = not listContains(collapsedHeaders[tab][sorting], "Uncategorized") and 1 or nil
-            local unc = {name = "Uncategorized", type = "header", exp = isExpanded, childs= {}}
-            tinsert(ARTISAN_SKILLS[tab][sorting], unc)
-            local uncatHeaderIndex = getkey(ARTISAN_SKILLS[tab][sorting], unc)
+            tinsert(ARTISAN_SKILLS[tab][sorting], {name = "Uncategorized", type = "header", exp = isExpanded, childs = {}})
+            local uncatHeaderIndex = getn(ARTISAN_SKILLS[tab][sorting])
             for i = 1, getn(ARTISAN_UNCATEGORIZED[tab]) do
                 if isExpanded then
                     tinsert(ARTISAN_SKILLS[tab][sorting], ARTISAN_UNCATEGORIZED[tab][i])
@@ -644,16 +645,24 @@ function Artisan_UpdateSkillList()
         -- update atributes
         for i = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
             if ARTISAN_SKILLS[tab][sorting].type ~= "header" then
-                local originalID = ARTISAN_SKILLS[tab][sorting][i].id
-                if originalID then
-                    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = C_GetCraftInfo(originalID)
-                    ARTISAN_SKILLS[tab][sorting][i].name = craftName
-                    ARTISAN_SKILLS[tab][sorting][i].type = craftType
-                    ARTISAN_SKILLS[tab][sorting][i].num = numAvailable
-                    ARTISAN_SKILLS[tab][sorting][i].sub = craftSubSpellName
-                    ARTISAN_SKILLS[tab][sorting][i].tp = trainingPointCost
-                    ARTISAN_SKILLS[tab][sorting][i].lvl = requiredLevel
-                end
+				for id = 1, C_GetNumCrafts() do
+                    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = C_GetCraftInfo(id)
+					if craftType ~= "header" then
+						if craftSubSpellName and craftSubSpellName ~= "" then
+							craftName = craftName.."  "..format(TEXT(PARENS_TEMPLATE), craftSubSpellName)
+						end
+						if craftName == ARTISAN_SKILLS[tab][sorting][i].name then
+							ARTISAN_SKILLS[tab][sorting][i].id = id
+							ARTISAN_SKILLS[tab][sorting][i].name = craftName
+							ARTISAN_SKILLS[tab][sorting][i].type = craftType
+							ARTISAN_SKILLS[tab][sorting][i].num = numAvailable
+							ARTISAN_SKILLS[tab][sorting][i].sub = craftSubSpellName
+							ARTISAN_SKILLS[tab][sorting][i].tp = trainingPointCost
+							ARTISAN_SKILLS[tab][sorting][i].lvl = requiredLevel
+							break
+						end
+					end
+				end
             end
         end
     end
@@ -1668,7 +1677,7 @@ function ArtisanEditorLeftButton_OnClick()
             tinsert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
         end
         tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
-        -- increment parent index for skills that belong to other headers
+        -- increment parent index for skills that belong to headers below
         for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
             if v.parent and v.parent > parentIndex then
                 v.parent = v.parent + 1
