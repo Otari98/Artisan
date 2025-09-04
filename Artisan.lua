@@ -1977,13 +1977,16 @@ function ArtisanEditorScrollFrameRight_OnLoad()
     end
 end
 
+local function sortByName(a, b)
+	return a.name < b.name
+end
+
 function ArtisanEditor_OnShow()
-    -- ArtisanEditor.currentHeader = nil
     local sorting = ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName]
-    if not ARTISAN_SKILLS[ArtisanFrame.selectedTabName][sorting] then
+	local tabName = ArtisanFrame.selectedTabName
+    if not ARTISAN_SKILLS[tabName][sorting] then
         return
     end
-    local tabName = ArtisanFrame.selectedTabName
     if not ARTISAN_UNCATEGORIZED[tabName] then
         ARTISAN_UNCATEGORIZED[tabName] = {}
     end
@@ -1994,12 +1997,11 @@ function ArtisanEditor_OnShow()
 
     for i = 1, C_GetNumCrafts() do
         local name, type, num, exp, sub, tp, lvl = C_GetCraftInfo(i)
-        local id = i
         if sub and sub ~= "" then
             name = name.."  "..format(TEXT(PARENS_TEMPLATE), sub)
         end
         if type ~= "header" then
-            tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
+            tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = i})
             for k in pairs(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][k].name == name then
                     tremove(ARTISAN_UNCATEGORIZED[tabName])
@@ -2008,9 +2010,7 @@ function ArtisanEditor_OnShow()
             end
         end
     end
-    table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
-    -- ArtisanEditorScrollFrameLeft:SetVerticalScroll(0)
-    -- ArtisanEditorScrollFrameRight:SetVerticalScroll(0)
+    table.sort(ARTISAN_UNCATEGORIZED[tabName], sortByName)
 end
 
 function ArtisanEditor_Search()
