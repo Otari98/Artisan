@@ -294,13 +294,6 @@ function ArtisanFrame_OnEvent()
             this.tick = GetTime() + 0.1
         end
         Artisan_SetupSideTabs()
-		if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "custom" then
-			ArtisanEditor_OnShow()
-			Artisan_UpdateSkillList()
-			if ArtisanEditor:IsShown() then
-				ArtisanEditor_Search()
-			end
-		end
         Artisan_Reselect()
 		ArtisanFrame_Search()
     elseif event == "TRADE_SKILL_SHOW" then
@@ -1743,9 +1736,6 @@ function ArtisanRightButtonUp_OnClick()
                         end
                     end
                 end
-				if ArtisanEditor.currentHeader and ArtisanEditor.currentHeader == prevIndex then
-					ArtisanEditor.currentHeader = ArtisanEditor.currentHeader + 1
-				end
             end
         else
 			local headerAbove
@@ -2008,20 +1998,7 @@ function ArtisanEditor_OnShow()
         if sub and sub ~= "" then
             name = name.."  "..format(TEXT(PARENS_TEMPLATE), sub)
         end
-		local exists = false
-		for k, v in pairs(ARTISAN_UNCATEGORIZED[tabName]) do
-			if v.name == name then
-				exists = true
-				break
-			end
-		end
-		-- orignial ids might have changed, make sure they are correct for custom categories
-		for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-			if v.name == name then
-				v.id = id
-			end
-		end
-        if type ~= "header" and not exists then
+        if type ~= "header" then
             tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
             for k in pairs(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][k].name == name then
