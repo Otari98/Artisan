@@ -472,7 +472,9 @@ function Artisan_UpdateSkillList()
 
     if sorting == "default" then
         if tab == "Enchanting" then
-            ARTISAN_SKILLS[tab][sorting][0] = { name = "All", type = "header", exp = 1, childs = {} }
+            ARTISAN_SKILLS[tab][sorting][0] = ARTISAN_SKILLS[tab][sorting][0] or { name = "All", type = "header", exp = 1, childs = {} }
+            wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
+            ARTISAN_SKILLS[tab][sorting][0].exp = 1
             numHeaders = 1
             local headerIndex = 0
             for i = 1, GetNumCrafts() do
@@ -522,20 +524,19 @@ function Artisan_UpdateSkillList()
             end
         elseif tab == "Beast Training" or tab == "Disguise" then
             -- no headers for these professions atm
-            local index = 1
             for i = 1, GetNumCrafts() do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
                 if name then
-                    tinsert(ARTISAN_SKILLS[tab][sorting], index, { name = "", sub = "", type = "", num = 0, exp = 0, tp = 0, lvl = 0, id = 0 })
-                    ARTISAN_SKILLS[tab][sorting][index].name = name
-                    ARTISAN_SKILLS[tab][sorting][index].sub = sub
-                    ARTISAN_SKILLS[tab][sorting][index].type = type
-                    ARTISAN_SKILLS[tab][sorting][index].num = num
-                    ARTISAN_SKILLS[tab][sorting][index].exp = exp
-                    ARTISAN_SKILLS[tab][sorting][index].tp = tp
-                    ARTISAN_SKILLS[tab][sorting][index].lvl = lvl
-                    ARTISAN_SKILLS[tab][sorting][index].id = i
-                    index = index + 1
+                    tinsert(ARTISAN_SKILLS[tab][sorting], {
+                        name = name,
+                        sub = sub,
+                        type = type,
+                        num = num,
+                        exp = exp,
+                        tp = tp,
+                        lvl = lvl,
+                        id = i,
+                    })
                 end
             end
         end
@@ -2202,39 +2203,46 @@ function ArtisanEditor_RenameCategory(into)
     end
 end
 
-function Artisan_SlashCommand(msg)
-    local function status(parameter)
-        local str = ""
-        if parameter then
-            str = "("..GREEN.."ON|r)"
-        else
-            str = "("..GREY.."OFF|r)"
-        end
-        return str
+local function status(parameter)
+    local str = ""
+    if parameter then
+        str = "("..GREEN.."ON|r)"
+    else
+        str = "("..GREY.."OFF|r)"
     end
+    return str
+end
+
+function Artisan_SlashCommand(msg)
     local cmd = strtrim(msg)
     cmd = strlower(cmd)
     if cmd == "auto" then
-        ARTISAN_CONFIG.auto = not ARTISAN_CONFIG.auto
         if ARTISAN_CONFIG.auto then
+            ARTISAN_CONFIG.auto = false
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
         else
+            ARTISAN_CONFIG.auto = true
             ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
         end
         DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..status(ARTISAN_CONFIG.auto))
     elseif cmd == "icons" then
-        ARTISAN_CONFIG.icons = not ARTISAN_CONFIG.icons
+        if ARTISAN_CONFIG.icons then
+            ARTISAN_CONFIG.icons = false
+        else
+            ARTISAN_CONFIG.icons = true
+        end
         DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..status(ARTISAN_CONFIG.icons))
     elseif cmd == "movable" then
         HideUIPanel(ArtisanFrame)
-        ARTISAN_CONFIG.movable = not ARTISAN_CONFIG.movable
         if ARTISAN_CONFIG.movable then
+            ARTISAN_CONFIG.movable = false
             UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
             ArtisanFrame:ClearAllPoints()
             ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
         else
+            ARTISAN_CONFIG.movable = true
             UIPanelWindows["ArtisanFrame"] = nil
             local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
             ARTISAN_CONFIG.X = offsetX
