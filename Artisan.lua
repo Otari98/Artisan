@@ -210,6 +210,7 @@ function Artisan_Init()
     if IsAddOnLoaded("Blizzard_TradeSkillUI") and IsAddOnLoaded("Blizzard_CraftUI") then
         return
     end
+
     EnableAddOn("Blizzard_TradeSkillUI")
     EnableAddOn("Blizzard_CraftUI")
     LoadAddOn("Blizzard_TradeSkillUI")
@@ -232,9 +233,60 @@ function Artisan_Init()
     ArtisanFrame.originalScroll = ArtisanDetailScrollFrame:GetScript("OnMouseWheel")
     FauxScrollFrame_SetOffset(TradeSkillListScrollFrame, 0)
 
+    local function status(parameter)
+        local str = ""
+        if parameter then
+            str = "("..GREEN.."ON|r)"
+        else
+            str = "("..GREY.."OFF|r)"
+        end
+        return str
+    end
+
     SLASH_ARTISAN1 = "/artisan"
+
     SlashCmdList["ARTISAN"] = function(msg)
-        Artisan_SlashCommand(msg)
+        local cmd = strtrim(msg)
+        cmd = strlower(cmd)
+        if cmd == "auto" then
+            if ARTISAN_CONFIG.auto then
+                ARTISAN_CONFIG.auto = false
+                ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
+                ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
+            else
+                ARTISAN_CONFIG.auto = true
+                ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
+                ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
+            end
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..status(ARTISAN_CONFIG.auto))
+        elseif cmd == "icons" then
+            if ARTISAN_CONFIG.icons then
+                ARTISAN_CONFIG.icons = false
+            else
+                ARTISAN_CONFIG.icons = true
+            end
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..status(ARTISAN_CONFIG.icons))
+        elseif cmd == "movable" then
+            HideUIPanel(ArtisanFrame)
+            if ARTISAN_CONFIG.movable then
+                ARTISAN_CONFIG.movable = false
+                UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
+                ArtisanFrame:ClearAllPoints()
+                ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
+            else
+                ARTISAN_CONFIG.movable = true
+                UIPanelWindows["ArtisanFrame"] = nil
+                local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
+                ARTISAN_CONFIG.X = offsetX
+                ARTISAN_CONFIG.Y = offsetY
+            end
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." movable window is now |r"..status(ARTISAN_CONFIG.movable))
+        else
+            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
+            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements "..status(ARTISAN_CONFIG.auto).."|r")
+            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names "..status(ARTISAN_CONFIG.icons).."|r")
+            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan movable|r"..WHITE.." - movable window "..status(ARTISAN_CONFIG.movable).."|r")
+        end
     end
 end
 
@@ -2200,60 +2252,6 @@ function ArtisanEditor_RenameCategory(into)
     if into ~= "" then
         ARTISAN_CUSTOM[ArtisanFrame.selectedTabName][ArtisanEditor.currentHeader].name = into
         ArtisanEditorRight_Update()
-    end
-end
-
-local function status(parameter)
-    local str = ""
-    if parameter then
-        str = "("..GREEN.."ON|r)"
-    else
-        str = "("..GREY.."OFF|r)"
-    end
-    return str
-end
-
-function Artisan_SlashCommand(msg)
-    local cmd = strtrim(msg)
-    cmd = strlower(cmd)
-    if cmd == "auto" then
-        if ARTISAN_CONFIG.auto then
-            ARTISAN_CONFIG.auto = false
-            ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
-            ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
-        else
-            ARTISAN_CONFIG.auto = true
-            ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
-            ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
-        end
-        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..status(ARTISAN_CONFIG.auto))
-    elseif cmd == "icons" then
-        if ARTISAN_CONFIG.icons then
-            ARTISAN_CONFIG.icons = false
-        else
-            ARTISAN_CONFIG.icons = true
-        end
-        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..status(ARTISAN_CONFIG.icons))
-    elseif cmd == "movable" then
-        HideUIPanel(ArtisanFrame)
-        if ARTISAN_CONFIG.movable then
-            ARTISAN_CONFIG.movable = false
-            UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
-            ArtisanFrame:ClearAllPoints()
-            ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
-        else
-            ARTISAN_CONFIG.movable = true
-            UIPanelWindows["ArtisanFrame"] = nil
-            local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
-            ARTISAN_CONFIG.X = offsetX
-            ARTISAN_CONFIG.Y = offsetY
-        end
-        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." movable window is now |r"..status(ARTISAN_CONFIG.movable))
-    else
-        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements "..status(ARTISAN_CONFIG.auto).."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names "..status(ARTISAN_CONFIG.icons).."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan movable|r"..WHITE.." - movable window "..status(ARTISAN_CONFIG.movable).."|r")
     end
 end
 
