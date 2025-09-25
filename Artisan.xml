@@ -246,17 +246,6 @@
 						</Scripts>
 					</Button>			
 				</Frames>
-				<Scripts>
-					<OnLoad>
-						this:RegisterEvent("SKILL_LINES_CHANGED")
-					</OnLoad>
-					<OnEvent>
-						if event == "SKILL_LINES_CHANGED" then
-							Artisan_SetupSideTabs()
-							ArtisanFrame_Update()
-						end
-					</OnEvent>
-				</Scripts>
 				<BarTexture name="$parentBar" file="Interface\PaperDollInfoFrame\UI-Character-Skills-Bar"/>
 				<BarColor r="0.0" g="0.0" b="1.0" a="0.5"/>
 			</StatusBar>
@@ -981,6 +970,9 @@
 			<OnEvent>
 				ArtisanFrame_OnEvent()
 			</OnEvent>
+			<OnUpdate>
+				ArtisanFrame_OnUpdate(arg1)
+			</OnUpdate>
 			<OnShow>
 				ArtisanFrameInputBox:SetNumber(1)
 				PlaySound("igCharacterInfoOpen")
