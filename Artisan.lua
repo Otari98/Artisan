@@ -10,13 +10,6 @@ local editorSearchResults = {}
 local playerProfessions = {}
 local collapsedHeaders = {}
 
-ARTISAN_SKILLS = ARTISAN_SKILLS or {}
-ARTISAN_CUSTOM = ARTISAN_CUSTOM or {}
-ARTISAN_UNCATEGORIZED = ARTISAN_UNCATEGORIZED or {}
-ARTISAN_CONFIG = ARTISAN_CONFIG or {}
-ARTISAN_CONFIG.auto = true
-ARTISAN_CONFIG.icons = true
-ARTISAN_CONFIG.reagents = {}
 BINDING_HEADER_ARTISAN_TITLE = "Artisan Bindings"
 BINDING_NAME_ARTISAN_CREATE = "Create"
 BINDING_NAME_ARTISAN_CREATE_ALL = "Create All"
@@ -70,7 +63,7 @@ local TypeColor = {
     ["none"]    = { r = 0.25, g = 0.75, b = 0.25 },
 }
 
-UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
+tinsert(UISpecialFrames, "ArtisanFrame")
 
 local YELLOW = NORMAL_FONT_COLOR_CODE
 local WHITE = HIGHLIGHT_FONT_COLOR_CODE
@@ -258,22 +251,46 @@ function ArtisanFrame_OnUpdate(deltaTime)
     end
 end
 
+function ArtisanFrame_OnMouseDown()
+    ArtisanFrameSearchBox:ClearFocus()
+    if not ARTISAN_CONFIG.movable then
+        return
+    end
+    ArtisanFrame:StartMoving()
+end
+
+function ArtisanFrame_OnMouseUp()
+    if not ARTISAN_CONFIG.movable then
+        return
+    end
+    ArtisanFrame:StopMovingOrSizing()
+    local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
+    ARTISAN_CONFIG.X = offsetX
+    ARTISAN_CONFIG.Y = offsetY
+end
+
 function ArtisanFrame_OnEvent()
     if event == "ADDON_LOADED" and arg1 == "Artisan" then
         this:UnregisterEvent("ADDON_LOADED")
         ArtisanRankFrame:SetStatusBarColor(0.0, 0.0, 1.0, 0.5)
         ArtisanRankFrameBackground:SetVertexColor(0.0, 0.0, 0.75, 0.5)
-        ARTISAN_SKILLS = ARTISAN_SKILLS or {}
-        ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or {}
-        if type(ARTISAN_CONFIG.sorting) ~= "table" then
-            ARTISAN_CONFIG.sorting = {}
-        end
-        ARTISAN_CONFIG.auto = ARTISAN_CONFIG.auto and true or false
-        ARTISAN_CONFIG.icons = ARTISAN_CONFIG.icons  and true or false
-        ARTISAN_CONFIG.reagents = ARTISAN_CONFIG.reagents or {}
+        ARTISAN_SKILLS = type(ARTISAN_SKILLS) ~= "table" and {} or ARTISAN_SKILLS
+        ARTISAN_CUSTOM = type(ARTISAN_CUSTOM) ~= "table" and {} or ARTISAN_CUSTOM
+        ARTISAN_UNCATEGORIZED = type(ARTISAN_UNCATEGORIZED) ~= "table" and {} or ARTISAN_UNCATEGORIZED
+        ARTISAN_CONFIG = type(ARTISAN_CONFIG) ~= "table" and {} or ARTISAN_CONFIG
+        ARTISAN_CONFIG.sorting = type(ARTISAN_CONFIG.sorting) ~= "table" and {} or ARTISAN_CONFIG.sorting
+        ARTISAN_CONFIG.auto = ARTISAN_CONFIG.auto == nil and true or ARTISAN_CONFIG.auto
+        ARTISAN_CONFIG.icons = ARTISAN_CONFIG.icons == nil and true or ARTISAN_CONFIG.icons
+        ARTISAN_CONFIG.reagents = type(ARTISAN_CONFIG.reagents) ~= "table" and {} or ARTISAN_CONFIG.reagents
+        ARTISAN_CONFIG.movable = ARTISAN_CONFIG.movable == nil and false or ARTISAN_CONFIG.movable
         if not ARTISAN_CONFIG.auto then
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
+        end
+        if not ARTISAN_CONFIG.movable then
+            UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
+        else
+            ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", ARTISAN_CONFIG.X or 0, ARTISAN_CONFIG.Y or -104)
         end
     elseif event == "SPELLS_CHANGED" then
         Artisan_SetupSideTabs()
@@ -907,22 +924,6 @@ function Artisan_SetSelection(id)
             end
             count:SetText(playerReagentCount.." /"..reagentCount)
         end
-        -- reagent.data = {}
-        -- for j = 1, Artisan_GetNumCrafts() do
-        --     local n, t = Artisan_GetCraftInfo(j)
-        --     if t ~= "header" then
-        --         if n == reagentName then
-        --             for k = 1, Artisan_GetCraftNumReagents(j) do
-        --                 local rName, rTex, rCount, rAvailable = Artisan_GetCraftReagentInfo(j, k)
-        --                 local _, _, rID = strfind(Artisan_GetReagentItemLink(j, k) or "", "item:(%d+)")
-        --                 local _, _, q = GetItemInfo(rID or 0)
-        --                 local _, _, _, c = GetItemQualityColor(q or 1)
-        --                 tinsert(reagent.data, {count = rCount * reagentCount, name = rName, color = c})
-        --             end
-        --             break
-        --         end
-        --     end
-        -- end
     end
 
     for i=numReagents + 1, maxCraftReagents, 1 do
@@ -2205,38 +2206,46 @@ function Artisan_SlashCommand(msg)
     local function status(parameter)
         local str = ""
         if parameter then
-            str = " ("..GREEN.."ON|r)"
+            str = "("..GREEN.."ON|r)"
         else
-            str = " ("..GREY.."OFF|r)"
+            str = "("..GREY.."OFF|r)"
         end
         return str
     end
     local cmd = strtrim(msg)
     cmd = strlower(cmd)
-    if cmd == "" then
-        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements"..status(ARTISAN_CONFIG.auto).."|r")
-        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names"..status(ARTISAN_CONFIG.icons).."|r")
-    elseif cmd == "auto" then
+    if cmd == "auto" then
+        ARTISAN_CONFIG.auto = not ARTISAN_CONFIG.auto
         if ARTISAN_CONFIG.auto then
-            ARTISAN_CONFIG.auto = false
             ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..GREY.."OFF|r")
         else
-            ARTISAN_CONFIG.auto = true
             ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
             ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..GREEN.."ON|r")
         end
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..status(ARTISAN_CONFIG.auto))
     elseif cmd == "icons" then
-        if ARTISAN_CONFIG.icons then
-            ARTISAN_CONFIG.icons = false
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..GREY.."OFF|r")
+        ARTISAN_CONFIG.icons = not ARTISAN_CONFIG.icons
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..status(ARTISAN_CONFIG.icons))
+    elseif cmd == "movable" then
+        HideUIPanel(ArtisanFrame)
+        ARTISAN_CONFIG.movable = not ARTISAN_CONFIG.movable
+        if ARTISAN_CONFIG.movable then
+            UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
+            ArtisanFrame:ClearAllPoints()
+            ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
         else
-            ARTISAN_CONFIG.icons = true
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..GREEN.."ON|r")
+            UIPanelWindows["ArtisanFrame"] = nil
+            local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
+            ARTISAN_CONFIG.X = offsetX
+            ARTISAN_CONFIG.Y = offsetY
         end
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." movable window is now |r"..status(ARTISAN_CONFIG.movable))
+    else
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements "..status(ARTISAN_CONFIG.auto).."|r")
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names "..status(ARTISAN_CONFIG.icons).."|r")
+        DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan movable|r"..WHITE.." - movable window "..status(ARTISAN_CONFIG.movable).."|r")
     end
 end
 
@@ -2257,12 +2266,5 @@ function ArtisanItem_OnEnter()
             GameTooltip:SetTradeSkillItem(skill, this:GetID())
         end
     end
-    -- if this.data and next(this.data) then
-    --     GameTooltip:AddLine(" ")
-    --     for i = 1, getn(this.data) do
-    --         GameTooltip:AddLine(this.data[i].count.."x "..this.data[i].color..this.data[i].name..FONT_COLOR_CODE_CLOSE)
-    --     end
-    -- end
-    -- GameTooltip:Show()
     CursorUpdate()
 end

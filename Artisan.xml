@@ -988,8 +988,11 @@
 				return
 			</OnMouseWheel>
 			<OnMouseDown>
-				ArtisanFrameSearchBox:ClearFocus()
+				ArtisanFrame_OnMouseDown()
 			</OnMouseDown>
+			<OnMouseUp>
+				ArtisanFrame_OnMouseUp()
+			</OnMouseUp>
 		</Scripts>
 	</Frame>
 </Ui>
