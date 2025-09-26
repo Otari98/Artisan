@@ -297,6 +297,7 @@ function ArtisanFrame_OnUpdate(deltaTime)
     timer = timer - deltaTime
     if timer <= 0 then
         timer = nil
+        ArtisanFrame.instant = nil
         Artisan_SetupSideTabs()
         Artisan_Reselect()
         ArtisanFrame_Search()
@@ -358,7 +359,7 @@ function ArtisanFrame_OnEvent()
     elseif event == "UNIT_PET_TRAINING_POINTS" then
 		Artisan_UpdateTrainingPoints()
     elseif event == "TRADE_SKILL_UPDATE" or event == "CRAFT_UPDATE" then
-        timer = updateDelay
+        timer = ArtisanFrame.instant or updateDelay
     elseif event == "TRADE_SKILL_SHOW" then
         CloseCraft()
         ArtisanFrame_Show()
@@ -398,7 +399,6 @@ function ArtisanFrame_Show()
     end
 
     Artisan_SetupSideTabs()
-    ArtisanFrame_Search()
     if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "default" then
         ArtisanSortDefault:SetChecked(1)
         ArtisanSortCustom:SetChecked(nil)
@@ -414,6 +414,7 @@ function ArtisanFrame_Show()
     else
         ArtisanHaveReagents:SetChecked(nil)
     end
+    ArtisanFrame_Search()
 end
 
 function Artisan_Reselect()
@@ -637,7 +638,7 @@ function Artisan_UpdateSkillList()
                 end
             end
         end
-        -- update atributes
+        -- update attributes
         for i = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
             if ARTISAN_SKILLS[tab][sorting].type ~= "header" then
                 for id = 1, C_GetNumCrafts() do
@@ -667,6 +668,7 @@ end
 
 function ArtisanFrame_Update()
     local tab = ArtisanFrame.selectedTabName
+    local sorting = ARTISAN_CONFIG.sorting[tab]
     if not tab then
         return
     end
@@ -675,8 +677,14 @@ function ArtisanFrame_Update()
     local numCrafts = Artisan_GetNumCrafts()
     local name, rank, maxRank = Artisan_GetCraftSkillLine()
     local headers = 0
+    if sorting == "custom" or ArtisanFrame.craft then
+        for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
+            if v.type == "header" then
+                headers = headers + 1
+            end
+        end
+    end
 
-    headers = Artisan_UpdateSkillList()
     if ArtisanFrame.craft then
         ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
         ArtisanFrameCreateButton:SetText(_G[GetCraftButtonToken()])
@@ -738,7 +746,14 @@ function ArtisanFrame_Update()
     ArtisanHighlightFrame:Hide()
 
     local results = getn(searchResults)
-    local craftsToUpdate = results == 0 and numCrafts or results
+    local craftsToUpdate = 0
+
+    if ArtisanFrameSearchBox:GetText() ~= "" or ARTISAN_CONFIG.reagents[tab] then
+        craftsToUpdate = results
+    else
+        craftsToUpdate = numCrafts
+    end
+
     FauxScrollFrame_Update(ArtisanListScrollFrame, craftsToUpdate, craftsDisplayed, craftSkillHeight, nil, nil, nil, ArtisanHighlightFrame, 293, 316 )
 
     for i=1, craftsDisplayed, 1 do
@@ -1175,6 +1190,8 @@ function ArtisanSideTab_OnCLick()
         return
     end
 
+    ArtisanFrame.instant = 0
+
     if this.name ~= ArtisanFrame.selectedTabName then
         ArtisanFrame.craft = this.name == "Enchanting" or this.name == "Beast Training" or this.name == "Disguise"
         ArtisanFrame.selectedTabName = this.name
@@ -1182,15 +1199,6 @@ function ArtisanSideTab_OnCLick()
         ArtisanFrame.selectedSkill = Artisan_GetFirstCraft()
         CastSpellByName(this.name)
         Artisan_SetSelection(Artisan_GetFirstCraft())
-    end
-
-    for i = 1, maxTabs do
-        local tab = _G["ArtisanFrameSideTab"..i]
-        if this:GetID() == i then
-            tab:SetChecked(1)
-        else
-            tab:SetChecked(nil)
-        end
     end
 
     if ArtisanEditor:IsShown() then
@@ -1299,6 +1307,8 @@ function Artisan_CollapseCraftSkillLine(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
 
+    ArtisanFrame.instant = 0
+
     if not ArtisanFrame.craft and sorting == "default" then
         CollapseTradeSkillSubClass(id)
         ArtisanFrame_Search()
@@ -1348,6 +1358,7 @@ end
 function Artisan_ExpandCraftSkillLine(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    ArtisanFrame.instant = 0
 
     if not ArtisanFrame.craft and sorting == "default" then
         ExpandTradeSkillSubClass(id)
@@ -1651,6 +1662,7 @@ function ArtisanEditorLeftButton_OnClick()
                 v.parent = v.parent + 1
             end
         end
+        Artisan_UpdateSkillList()
         ArtisanEditor_Search()
         ArtisanEditorRight_Update()
     end
@@ -1662,6 +1674,7 @@ function ArtisanEditorRightButton_OnClick()
     else
         ArtisanEditor.currentHeader = this.parent
     end
+    Artisan_UpdateSkillList()
     ArtisanEditorRight_Update()
 end
 
@@ -1746,6 +1759,7 @@ function ArtisanRightButtonUp_OnClick()
 				end
 			end
 		end
+        Artisan_UpdateSkillList()
         ArtisanEditorRight_Update()
     end
 end
@@ -1837,6 +1851,7 @@ function ArtisanRightButtonDown_OnClick()
 				end
 			end
 		end
+        Artisan_UpdateSkillList()
         ArtisanEditorRight_Update()
     end
 end
@@ -1901,6 +1916,7 @@ function ArtisanRightButtonDelete_OnClick()
 		end
 	end
     table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
+    Artisan_UpdateSkillList()
     ArtisanEditor_Search()
     ArtisanEditorRight_Update()
 end
@@ -2243,6 +2259,7 @@ function ArtisanEditor_AddCategory(categoryName)
                 ArtisanEditor.currentHeader = k
             end
         end
+        Artisan_UpdateSkillList()
         ArtisanEditorRight_Update()
     end
 end
@@ -2251,6 +2268,7 @@ function ArtisanEditor_RenameCategory(into)
     into = strtrim(into)
     if into ~= "" then
         ARTISAN_CUSTOM[ArtisanFrame.selectedTabName][ArtisanEditor.currentHeader].name = into
+        Artisan_UpdateSkillList()
         ArtisanEditorRight_Update()
     end
 end
