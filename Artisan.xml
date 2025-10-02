@@ -348,7 +348,7 @@
 					</Button>
 				</Frames>
 			</Frame>
-			<EditBox name="ArtisanFrameSearchBox" inherits="InputBoxTemplate" letters="100">
+			<EditBox name="ArtisanFrameSearchBox" inherits="InputBoxTemplate" historyLines="32" letters="255">
 				<Size x="270" y="32"/>
 				<Anchors>
 					<Anchor point="CENTER" relativeTo="ArtisanExpandButtonFrame" relativePoint="RIGHT">
@@ -421,6 +421,15 @@
 						this:ClearFocus()
 						ArtisanFrame_Search()
 					</OnEscapePressed>
+					<OnEditFocusLost>
+						this:HighlightText(0, 0)
+						if strlen(this:GetText()) > 0 then
+							this:AddHistoryLine(this:GetText())
+						end
+					</OnEditFocusLost>
+					<OnEditFocusGained>
+						this:HighlightText()
+					</OnEditFocusGained>
 				</Scripts>
 				<FontString name="$parentSearchString" inherits="GameFontNormal"/>
 			</EditBox>
