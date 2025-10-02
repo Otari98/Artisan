@@ -974,8 +974,7 @@
 				ArtisanFrame_OnUpdate(arg1)
 			</OnUpdate>
 			<OnShow>
-				ArtisanFrameInputBox:SetNumber(1)
-				PlaySound("igCharacterInfoOpen")
+				ArtisanFrame_OnShow()
 			</OnShow>
 			<OnHide>
 				this.selectedTabName = nil

@@ -128,6 +128,9 @@ local function strsplit(str, delimiter)
 end
 
 function ArtisanFrame_Search()
+    if not ArtisanFrame:IsShown() then
+        return
+    end
 	wipe(searchResults)
 	local query = strlower(ArtisanFrameSearchBox:GetText())
     query = strtrim(query)
@@ -391,14 +394,28 @@ function ArtisanFrame_OnEvent()
     end
 end
 
-function ArtisanFrame_Show()
-    wipe(searchResults)
+function ArtisanFrame_OnShow()
+    Artisan_SetupSideTabs()
+    if not ArtisanFrame.selectedTabName then
+        HideUIPanel(ArtisanFrame)
+        return
+    end
+    ArtisanFrameInputBox:SetNumber(1)
+    PlaySound("igCharacterInfoOpen")
+end
 
+function ArtisanFrame_Show()
     if not ArtisanFrame:IsShown() then
         ShowUIPanel(ArtisanFrame)
     end
 
-    Artisan_SetupSideTabs()
+    -- Artisan_SetupSideTabs()
+
+    if not ArtisanFrame.selectedTabName then
+        HideUIPanel(ArtisanFrame)
+        return
+    end
+
     if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "default" then
         ArtisanSortDefault:SetChecked(1)
         ArtisanSortCustom:SetChecked(nil)
@@ -420,6 +437,9 @@ end
 function Artisan_Reselect()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not sorting then
+        return
+    end
     if sorting == "default" and not ArtisanFrame.craft then
         if GetTradeSkillSelectionIndex() > 1 and GetTradeSkillSelectionIndex() <= GetNumTradeSkills() then
             Artisan_SetSelection(GetTradeSkillSelectionIndex())
@@ -895,9 +915,9 @@ function Artisan_SetSelection(id)
         return
     end
     
-    if ArtisanFrameSearchBox:GetText() ~= "" and getn(searchResults) == 0 then
-        return
-    end
+    -- if ArtisanFrameSearchBox:GetText() ~= "" and getn(searchResults) == 0 then
+    --     return
+    -- end
 
     ArtisanHighlightFrame:Show()
 
@@ -1274,6 +1294,10 @@ function Artisan_GetCraftInfo(index)
         return GetTradeSkillInfo(index)
     end
 
+    if index <= 0 then
+        return nil, nil, 0, nil, nil, 0, 0
+    end
+
     local craftName = ""
     local craftType = ""
     local numAvailable = 0
@@ -1331,6 +1355,7 @@ function Artisan_CollapseCraftSkillLine(id)
             end
         end
         Artisan_UpdateSkillList()
+        Artisan_SetSelection(0)
     else
         -- collapse only 1
         local headerName = ARTISAN_SKILLS[tab][sorting][id].name
