@@ -245,6 +245,9 @@
 			</EditBox>
         </Frames>
         <Scripts>
+            <OnLoad>
+                this:RegisterForDrag("LeftButton")
+            </OnLoad>
             <OnShow>
                 ArtisanEditor_OnShow()
             </OnShow>
@@ -255,6 +258,12 @@
             <OnMouseUp>
                 ArtisanEditorSearchBox:ClearFocus()
             </OnMouseUp>
+            <OnDragStart>
+                this:StartMoving()
+            </OnDragStart>
+            <OnDragStop>
+                this:StopMovingOrSizing()
+            </OnDragStop>
         </Scripts>
     </Frame>
 </Ui>

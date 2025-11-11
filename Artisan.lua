@@ -2,13 +2,16 @@ local _G = _G or getfenv(0)
 local maxCraftReagents = 8
 local craftSkillHeight = 16
 local craftsDisplayed = 12
-local maxTabs = 7
 local updateDelay = 0.2
 local timer = nil
 local searchResults = {}
 local editorSearchResults = {}
 local playerProfessions = {}
 local collapsedHeaders = {}
+local DREAMSTONE_SPELL_LINK = "enchant:57518"
+local DREAMSTONE_ITEM_LINK = "item:61732"
+local createdItem = gsub(LOOT_ITEM_CREATED_SELF, "%%s", "(.+)")
+local dreamstoneKnown = false
 
 BINDING_HEADER_ARTISAN_TITLE = "Artisan Bindings"
 BINDING_NAME_ARTISAN_CREATE = "Create"
@@ -207,6 +210,7 @@ function ArtisanFrame_OnLoad()
     this:RegisterEvent("REPLACE_ENCHANT")
 	this:RegisterEvent("TRADE_REPLACE_ENCHANT")
     this:RegisterEvent("SKILL_LINES_CHANGED")
+    this:RegisterEvent("CHAT_MSG_LOOT")
 end
 
 function Artisan_Init()
@@ -391,6 +395,11 @@ function ArtisanFrame_OnEvent()
     elseif event == "TRADE_REPLACE_ENCHANT" then
         ReplaceTradeEnchant()
         StaticPopup_Hide("TRADE_REPLACE_ENCHANT")
+    elseif event == "CHAT_MSG_LOOT" and dreamstoneKnown then
+        local _, _, item = strfind(arg1, createdItem)
+        if item and strfind(item, DREAMSTONE_ITEM_LINK) then
+            ARTISAN_DREAMSTONE_TIME = time()
+        end
     end
 end
 
@@ -545,14 +554,18 @@ function Artisan_UpdateSkillList()
 
     if sorting == "default" then
         if tab == "Enchanting" then
+            dreamstoneKnown = false
             ARTISAN_SKILLS[tab][sorting][0] = ARTISAN_SKILLS[tab][sorting][0] or { name = "All", type = "header", exp = 1, childs = {} }
             wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
             ARTISAN_SKILLS[tab][sorting][0].exp = 1
             numHeaders = 1
             local headerIndex = 0
-            for i = 1, GetNumCrafts() do
+            for i = GetNumCrafts(), 1, -1 do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
                 if type ~= "header" then
+                    if name == "Eternal Dreamstone Shard" then
+                        dreamstoneKnown = true
+                    end
                     -- default to Miscellaneous
                     local header = "Miscellaneous"
                     for pattern, hdr in pairs(patternsToHeaders[tab]) do
@@ -597,7 +610,7 @@ function Artisan_UpdateSkillList()
             end
         elseif tab == "Beast Training" or tab == "Disguise" then
             -- no headers for these professions atm
-            for i = 1, GetNumCrafts() do
+            for i = GetNumCrafts(), 1, -1 do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
                 if name then
                     tinsert(ARTISAN_SKILLS[tab][sorting], {
@@ -954,8 +967,9 @@ function Artisan_SetSelection(id)
     ArtisanCraftCost:Hide()
     ArtisanCraftDescription:Hide()
     -- Cooldown
-    if GetTradeSkillCooldown(GetTradeSkillSelectionIndex()) and not ArtisanFrame.craft then
-        ArtisanSkillCooldown:SetText(COOLDOWN_REMAINING.." "..SecondsToTime(GetTradeSkillCooldown(GetTradeSkillSelectionIndex())))
+    local cooldown = Artisan_GetCraftCooldown(id)
+    if cooldown then
+        ArtisanSkillCooldown:SetText(COOLDOWN_REMAINING.." "..SecondsToTime(cooldown))
     else
         ArtisanSkillCooldown:SetText("")
     end
@@ -1557,6 +1571,18 @@ function Artisan_GetCraftIcon(id)
     end
     local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
     return GetCraftIcon(originalID)
+end
+
+function Artisan_GetCraftCooldown(id)
+    if ArtisanFrame.craft then
+        if dreamstoneKnown and strfind(Artisan_GetItemLink(id) or "", DREAMSTONE_SPELL_LINK) and ARTISAN_DREAMSTONE_TIME then
+            local cd = ARTISAN_DREAMSTONE_TIME + 259200 - time()
+            return cd > 0 and cd or nil
+        end
+        return nil
+    else
+        return GetTradeSkillCooldown(GetTradeSkillSelectionIndex())
+    end
 end
 
 function Artisan_GetCraftDescription(id)

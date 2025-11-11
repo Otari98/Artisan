@@ -3,6 +3,6 @@
 ## Author: Otari98
 ## Version: 2.6
 ## Notes: Compact window for your professions v.2.6
-## SavedVariablesPerCharacter: ARTISAN_SKILLS, ARTISAN_CUSTOM, ARTISAN_UNCATEGORIZED, ARTISAN_CONFIG
+## SavedVariablesPerCharacter: ARTISAN_SKILLS, ARTISAN_CUSTOM, ARTISAN_UNCATEGORIZED, ARTISAN_CONFIG, ARTISAN_DREAMSTONE_TIME
 Artisan.xml
 CustomCategories.xml
