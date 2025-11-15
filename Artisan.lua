@@ -446,9 +446,11 @@ end
 function Artisan_Reselect()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not sorting then
+
+    if not (tab and sorting) then
         return
     end
+
     if sorting == "default" and not ArtisanFrame.craft then
         if GetTradeSkillSelectionIndex() > 1 and GetTradeSkillSelectionIndex() <= GetNumTradeSkills() then
             Artisan_SetSelection(GetTradeSkillSelectionIndex())
@@ -541,6 +543,11 @@ end
 function Artisan_UpdateSkillList()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+
+    if not (tab and sorting) then
+        return
+    end
+
     local numHeaders = 0
 
     ARTISAN_SKILLS[tab] = ARTISAN_SKILLS[tab] or {}
@@ -702,7 +709,8 @@ end
 function ArtisanFrame_Update()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not tab then
+
+    if not (tab and sorting) then
         return
     end
 
@@ -924,7 +932,7 @@ function ArtisanFrame_Update()
 end
 
 function Artisan_SetSelection(id)
-    if not ArtisanFrame.selectedTabName then
+    if not (ArtisanFrame.selectedTabName and id) then
         return
     end
     
@@ -999,7 +1007,7 @@ function Artisan_SetSelection(id)
         end
     end
     -- Reagents
-    local creatable = 1
+    local creatable = true
     local numReagents = Artisan_GetCraftNumReagents(id)
     for i=1, numReagents, 1 do
         local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan_GetCraftReagentInfo(id, i)
@@ -1016,7 +1024,7 @@ function Artisan_SetSelection(id)
             if ( playerReagentCount < reagentCount ) then
                 SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
                 name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
-                creatable = nil
+                creatable = false
             else
                 SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
                 name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
@@ -1063,7 +1071,7 @@ function Artisan_SetSelection(id)
     end
 
     if ( craftType == "used" ) then
-        creatable = nil
+        creatable = false
     end
 
     if ( creatable ) then
@@ -1139,7 +1147,7 @@ function Artisan_UpdateDetailScrollFrame(numReagents)
 end
 
 function ArtisanCollapseAllButton_OnClick()
-	if (this.collapsed) then
+	if this.collapsed then
 		this.collapsed = nil
         ArtisanListScrollFrameScrollBar:SetValue(0)
         Artisan_ExpandCraftSkillLine(0)
@@ -1152,70 +1160,72 @@ function ArtisanCollapseAllButton_OnClick()
 end
 
 function ArtisanSkillButton_OnClick(button)
-    if button == "LeftButton" then
-        if IsShiftKeyDown() then
-            local tab = ArtisanFrame.selectedTabName
-            local sorting = ARTISAN_CONFIG.sorting[tab]
-            local craftIndex = this:GetID()
-            local channel, chatNumber
-
-            if not this.type or this.type == "header" or this.type == "none" or this.type == "used" then
-                return
-            end
-
-            if WIM_EditBoxInFocus then
-                channel = "WHISPER"
-                chatNumber = WIM_EditBoxInFocus:GetParent().theUser
-            else
-                channel = ChatFrameEditBox.chatType
-                if channel == "WHISPER" then
-                    chatNumber = ChatFrameEditBox.tellTarget
-                elseif channel == "CHANNEL" then
-                    chatNumber = ChatFrameEditBox.channelTarget
-                end
-            end
-
-            local numMade = ""
-            if not ArtisanFrame.craft then
-                local selection = craftIndex
-                if sorting == "custom" then
-                    selection = ARTISAN_SKILLS[tab][sorting][craftIndex].id
-                end
-                local minMade, maxMade = GetTradeSkillNumMade(selection)
-                if maxMade ~= minMade then
-                    numMade = minMade.."-"..maxMade.."x"
-                elseif minMade ~= 1 then
-                    numMade = minMade.."x"
-                end
-            end
-
-            local itemLink = Artisan_GetItemLink(craftIndex)
-            local linksCount = 0
-            local msg = ""
-
-            SendChatMessage(numMade..itemLink.." reagents:", channel, nil, chatNumber)
-            for reagentIndex = 1, Artisan_GetCraftNumReagents(craftIndex) do
-                local _, _, reagentsNeeded = Artisan_GetCraftReagentInfo(craftIndex, reagentIndex)
-                local reagentLink = Artisan_GetReagentItemLink(craftIndex, reagentIndex)
-        
-                msg = msg..reagentsNeeded.."x"..reagentLink.." "
-                linksCount = linksCount + 1
-                if linksCount == 4 then
-                    SendChatMessage(msg, channel, nil, chatNumber)
-                    msg = ""
-                    linksCount = 0
-                end
-            end
-            if linksCount > 0 then
-                SendChatMessage(msg, channel, nil, chatNumber)
-            end
-        else
-            ArtisanDetailScrollFrame:SetVerticalScroll(0)
-            Artisan_SetSelection(this:GetID())
-            ArtisanFrame_Search()
-        end
-	end
     ArtisanFrameSearchBox:ClearFocus()
+
+    if button ~= "LeftButton" then
+        return
+    end
+    if IsShiftKeyDown() then
+        local tab = ArtisanFrame.selectedTabName
+        local sorting = ARTISAN_CONFIG.sorting[tab]
+        local craftIndex = this:GetID()
+        local channel, chatNumber
+
+        if not this.type or this.type == "header" or this.type == "none" or this.type == "used" then
+            return
+        end
+
+        if WIM_EditBoxInFocus then
+            channel = "WHISPER"
+            chatNumber = WIM_EditBoxInFocus:GetParent().theUser
+        else
+            channel = ChatFrameEditBox.chatType
+            if channel == "WHISPER" then
+                chatNumber = ChatFrameEditBox.tellTarget
+            elseif channel == "CHANNEL" then
+                chatNumber = ChatFrameEditBox.channelTarget
+            end
+        end
+
+        local numMade = ""
+        if not ArtisanFrame.craft then
+            local selection = craftIndex
+            if sorting == "custom" then
+                selection = ARTISAN_SKILLS[tab][sorting][craftIndex].id
+            end
+            local minMade, maxMade = GetTradeSkillNumMade(selection)
+            if maxMade ~= minMade then
+                numMade = minMade.."-"..maxMade.."x"
+            elseif minMade ~= 1 then
+                numMade = minMade.."x"
+            end
+        end
+
+        local itemLink = Artisan_GetItemLink(craftIndex)
+        local linksCount = 0
+        local msg = ""
+
+        SendChatMessage(numMade..itemLink.." reagents:", channel, nil, chatNumber)
+        for reagentIndex = 1, Artisan_GetCraftNumReagents(craftIndex) do
+            local _, _, reagentsNeeded = Artisan_GetCraftReagentInfo(craftIndex, reagentIndex)
+            local reagentLink = Artisan_GetReagentItemLink(craftIndex, reagentIndex)
+    
+            msg = msg..reagentsNeeded.."x"..reagentLink.." "
+            linksCount = linksCount + 1
+            if linksCount == 4 then
+                SendChatMessage(msg, channel, nil, chatNumber)
+                msg = ""
+                linksCount = 0
+            end
+        end
+        if linksCount > 0 then
+            SendChatMessage(msg, channel, nil, chatNumber)
+        end
+    else
+        ArtisanDetailScrollFrame:SetVerticalScroll(0)
+        Artisan_SetSelection(this:GetID())
+        ArtisanFrame_Search()
+    end
 end
 
 function ArtisanSideTab_OnCLick()
@@ -1300,7 +1310,8 @@ end
 function Artisan_GetCraftInfo(index)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not tab then
+
+    if not (tab and sorting and index) then
         return
     end
 
@@ -1344,6 +1355,10 @@ end
 function Artisan_CollapseCraftSkillLine(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+
+    if not (tab and sorting) then
+        return
+    end
 
     ArtisanFrame.instant = 0
 
@@ -1397,6 +1412,11 @@ end
 function Artisan_ExpandCraftSkillLine(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+
+    if not (tab and sorting) then
+        return
+    end
+
     ArtisanFrame.instant = 0
 
     if not ArtisanFrame.craft and sorting == "default" then
@@ -1450,6 +1470,9 @@ end
 function Artisan_GetItemLink(index)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and index) then
+        return nil
+    end
 	if ArtisanFrame.craft then
         local originalID = ARTISAN_SKILLS[tab][sorting][index] and ARTISAN_SKILLS[tab][sorting][index].id or 0
 		return GetCraftItemLink(originalID)
@@ -1466,6 +1489,9 @@ end
 function Artisan_GetReagentItemLink(craftIndex, reagentIndex)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and craftIndex and reagentIndex) then
+        return nil
+    end
     if ArtisanFrame.craft then
         local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex] and ARTISAN_SKILLS[tab][sorting][craftIndex].id or 0
         return GetCraftReagentItemLink(originalIndex, reagentIndex)
@@ -1483,8 +1509,8 @@ function Artisan_GetFirstCraft()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
 
-    if not tab then
-        return
+    if not (tab and sorting) then
+        return nil
     end
 
     if not ArtisanFrame.craft and sorting == "default" then
@@ -1513,6 +1539,9 @@ function Artisan_DoCraft(numAvailable)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
     local skill = ArtisanFrame.selectedSkill
+    if not (tab and sorting and skill) then
+        return
+    end
     if ArtisanFrame.craft then
         local originalID = ARTISAN_SKILLS[tab][sorting][skill] and ARTISAN_SKILLS[tab][sorting][skill].id or 0
         DoCraft(originalID)
@@ -1534,6 +1563,9 @@ end
 function Artisan_GetNumCrafts()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting) then
+        return 0
+    end
     if not ArtisanFrame.craft and sorting == "default" then
         return GetNumTradeSkills()
     end
@@ -1544,6 +1576,9 @@ end
 function Artisan_SelectCraft(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id) then
+        return
+    end
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return SelectTradeSkill(id)
@@ -1561,6 +1596,9 @@ end
 function Artisan_GetCraftIcon(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id) then
+        return nil
+    end
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return GetTradeSkillIcon(id)
@@ -1574,6 +1612,9 @@ function Artisan_GetCraftIcon(id)
 end
 
 function Artisan_GetCraftCooldown(id)
+    if not id then
+        return nil
+    end
     if ArtisanFrame.craft then
         if dreamstoneKnown and strfind(Artisan_GetItemLink(id) or "", DREAMSTONE_SPELL_LINK) and ARTISAN_DREAMSTONE_TIME then
             local cd = ARTISAN_DREAMSTONE_TIME + 259200 - time()
@@ -1588,6 +1629,9 @@ end
 function Artisan_GetCraftDescription(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id) then
+        return nil
+    end
     if not ArtisanFrame.craft then
         return nil
     end
@@ -1598,6 +1642,9 @@ end
 function Artisan_GetCraftNumReagents(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id) then
+        return nil
+    end
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return GetTradeSkillNumReagents(id)
@@ -1613,6 +1660,9 @@ end
 function Artisan_GetCraftReagentInfo(id, i)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id and i) then
+        return nil
+    end
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return GetTradeSkillReagentInfo(id, i)
@@ -1628,6 +1678,9 @@ end
 function Artisan_GetCraftTools(id)
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting and id) then
+        return nil
+    end
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return GetTradeSkillTools(id)
@@ -1698,25 +1751,26 @@ function Artisan_HaveReagents_OnClick()
 end
 
 function ArtisanEditorLeftButton_OnClick()
-    if ArtisanEditor.currentHeader then
-        local parentIndex = ArtisanEditor.currentHeader
-        local tabName = ArtisanFrame.selectedTabName
-        local name, type, num, sub, tp, lvl, id = this.name, this.type, this.num, this.sub, this.tp, this.lvl, this.id
-        if this.type ~= "header" then
-            tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
-            tinsert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
-        end
-        tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
-        -- increment parent index for skills that belong to headers below
-        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-            if v.parent and v.parent > parentIndex then
-                v.parent = v.parent + 1
-            end
-        end
-        Artisan_UpdateSkillList()
-        ArtisanEditor_Search()
-        ArtisanEditorRight_Update()
+    if not ArtisanEditor.currentHeader then
+        return
     end
+    local parentIndex = ArtisanEditor.currentHeader
+    local tabName = ArtisanFrame.selectedTabName
+    local name, type, num, sub, tp, lvl, id = this.name, this.type, this.num, this.sub, this.tp, this.lvl, this.id
+    if this.type ~= "header" then
+        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
+        tinsert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
+    end
+    tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
+    -- increment parent index for skills that belong to headers below
+    for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
+        if v.parent and v.parent > parentIndex then
+            v.parent = v.parent + 1
+        end
+    end
+    Artisan_UpdateSkillList()
+    ArtisanEditor_Search()
+    ArtisanEditorRight_Update()
 end
 
 function ArtisanEditorRightButton_OnClick()
@@ -1740,79 +1794,80 @@ function ArtisanRightButtonUp_OnClick()
 		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
 	end
 
-    if (craftIndex and craftIndex > 2) then
-        if thisButton.type ~= "header" then
+    if not (craftIndex and craftIndex > 2) then
+        return
+    end
 
-            local temp = ARTISAN_CUSTOM[tabName][craftIndex]
-            ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][prevIndex]
-            ARTISAN_CUSTOM[tabName][prevIndex] = temp
+    if thisButton.type ~= "header" then
+        local temp = ARTISAN_CUSTOM[tabName][craftIndex]
+        ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][prevIndex]
+        ARTISAN_CUSTOM[tabName][prevIndex] = temp
 
-            if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
-                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    end
-                end
-            else
-                local prevParentIndex = ARTISAN_CUSTOM[tabName][craftIndex - 2].parent
-                ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
-                ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == prevIndex then
-                            ARTISAN_CUSTOM[tabName][i].parent = craftIndex
-                        end
-                    end
-                end
-
-                ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
-                ARTISAN_CUSTOM[tabName][prevParentIndex].childs = {}
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                            tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                        elseif ARTISAN_CUSTOM[tabName][i].parent == prevParentIndex then
-                            tinsert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                        end
-                    end
+        if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
+            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                    tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                 end
             end
         else
-			local headerAbove
-            if ARTISAN_CUSTOM[tabName][prevIndex].type ~= "header" then
-                headerAbove = ARTISAN_CUSTOM[tabName][prevIndex].parent
-            else
-                headerAbove = prevIndex
-            end
-            local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
-            local temp = {}
-            for i = offset, craftIndex, -1 do
-                tinsert(temp, ARTISAN_CUSTOM[tabName][i])
-                tremove(ARTISAN_CUSTOM[tabName], i)
-            end
-            for i = 1, getn(temp) do
-                tinsert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
-            end
-            local newParent = 1
-            for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+            local prevParentIndex = ARTISAN_CUSTOM[tabName][craftIndex - 2].parent
+            ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
+            ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
-                    ARTISAN_CUSTOM[tabName][i].parent = newParent
-                else
-                    newParent = i
+                    if ARTISAN_CUSTOM[tabName][i].parent == prevIndex then
+                        ARTISAN_CUSTOM[tabName][i].parent = craftIndex
+                    end
+                end
+            end
+
+            ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
+            ARTISAN_CUSTOM[tabName][prevParentIndex].childs = {}
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent then
+                    if ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    elseif ARTISAN_CUSTOM[tabName][i].parent == prevParentIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    end
                 end
             end
         end
-		if currentHeaderName then
-			for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-				if v.name == currentHeaderName then
-					ArtisanEditor.currentHeader = k
-				end
-			end
-		end
-        Artisan_UpdateSkillList()
-        ArtisanEditorRight_Update()
+    else
+        local headerAbove
+        if ARTISAN_CUSTOM[tabName][prevIndex].type ~= "header" then
+            headerAbove = ARTISAN_CUSTOM[tabName][prevIndex].parent
+        else
+            headerAbove = prevIndex
+        end
+        local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
+        local temp = {}
+        for i = offset, craftIndex, -1 do
+            tinsert(temp, ARTISAN_CUSTOM[tabName][i])
+            tremove(ARTISAN_CUSTOM[tabName], i)
+        end
+        for i = 1, getn(temp) do
+            tinsert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
+        end
+        local newParent = 1
+        for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+            if ARTISAN_CUSTOM[tabName][i].parent then
+                ARTISAN_CUSTOM[tabName][i].parent = newParent
+            else
+                newParent = i
+            end
+        end
     end
+    if currentHeaderName then
+        for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+            if v.name == currentHeaderName then
+                ArtisanEditor.currentHeader = k
+            end
+        end
+    end
+    Artisan_UpdateSkillList()
+    ArtisanEditorRight_Update()
 end
 
 function ArtisanRightButtonDown_OnClick()
@@ -1827,84 +1882,85 @@ function ArtisanRightButtonDown_OnClick()
 		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
 	end
 
-    if (craftIndex and craftIndex < numSkills) then
-        if thisButton.type ~= "header" then
-            local temp = ARTISAN_CUSTOM[tabName][craftIndex]
-            ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][nextIndex]
-            ARTISAN_CUSTOM[tabName][nextIndex] = temp
+    if not (craftIndex and craftIndex < numSkills) then
+        return
+    end
+    if thisButton.type ~= "header" then
+        local temp = ARTISAN_CUSTOM[tabName][craftIndex]
+        ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][nextIndex]
+        ARTISAN_CUSTOM[tabName][nextIndex] = temp
 
-            if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
-                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    end
-                end
-            else
-                ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
-                ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == nextIndex then
-                            ARTISAN_CUSTOM[tabName][i].parent = craftIndex
-                        end
-                    end
-                end
-
-                ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-                ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
-                for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
-                    if ARTISAN_CUSTOM[tabName][i].parent then
-                        if ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                            tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                        elseif ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                            tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                        end
-                    end
+        if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
+            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                    tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                 end
             end
         else
-            local headerBelow
-            if ARTISAN_CUSTOM[tabName][nextIndex].type ~= "header" then
-                headerBelow = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
-            else
-                headerBelow = nextIndex
-            end
-
-            if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
-                return
-            end
-
-            local pos = headerBelow + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
-            local x = 0
-            for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-                tinsert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
-                x = x + 1
-            end
-            x = 0
-            for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-                tremove(ARTISAN_CUSTOM[tabName], i - x)
-                x = x + 1
-            end
-            local newParent = 1
-            for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+            ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
+            ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
-                    ARTISAN_CUSTOM[tabName][i].parent = newParent
-                else
-                    newParent = i
+                    if ARTISAN_CUSTOM[tabName][i].parent == nextIndex then
+                        ARTISAN_CUSTOM[tabName][i].parent = craftIndex
+                    end
+                end
+            end
+
+            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
+            ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
+            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+                if ARTISAN_CUSTOM[tabName][i].parent then
+                    if ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    elseif ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
+                        tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    end
                 end
             end
         end
-		if currentHeaderName then
-			for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-				if v.name == currentHeaderName then
-					ArtisanEditor.currentHeader = k
-				end
-			end
-		end
-        Artisan_UpdateSkillList()
-        ArtisanEditorRight_Update()
+    else
+        local headerBelow
+        if ARTISAN_CUSTOM[tabName][nextIndex].type ~= "header" then
+            headerBelow = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
+        else
+            headerBelow = nextIndex
+        end
+
+        if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
+            return
+        end
+
+        local pos = headerBelow + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
+        local x = 0
+        for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+            tinsert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
+            x = x + 1
+        end
+        x = 0
+        for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+            tremove(ARTISAN_CUSTOM[tabName], i - x)
+            x = x + 1
+        end
+        local newParent = 1
+        for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+            if ARTISAN_CUSTOM[tabName][i].parent then
+                ARTISAN_CUSTOM[tabName][i].parent = newParent
+            else
+                newParent = i
+            end
+        end
     end
+    if currentHeaderName then
+        for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
+            if v.name == currentHeaderName then
+                ArtisanEditor.currentHeader = k
+            end
+        end
+    end
+    Artisan_UpdateSkillList()
+    ArtisanEditorRight_Update()
 end
 
 function ArtisanRightButtonDelete_OnClick()
@@ -2058,8 +2114,14 @@ end
 
 function ArtisanEditor_Search()
 	wipe(editorSearchResults)
-	local query = strlower(ArtisanEditorSearchBox:GetText())
+
+    local query = strlower(ArtisanEditorSearchBox:GetText())
     local tab = ArtisanFrame.selectedTabName
+
+    if not tab then
+        return
+    end
+
     query = strtrim(query)
     if query == "" then
         ArtisanEditorLeft_Update()
@@ -2303,33 +2365,39 @@ StaticPopupDialogs["ARTISAN_RENAME_CATEGORY"] = {
 function ArtisanEditor_AddCategory(categoryName)
     categoryName = strtrim(categoryName)
     local tabName = ArtisanFrame.selectedTabName
-    if categoryName ~= "" then
-        tinsert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
-        for k in pairs(ARTISAN_CUSTOM[tabName]) do
-            if ARTISAN_CUSTOM[tabName][k].name == categoryName then
-                ArtisanEditor.currentHeader = k
-            end
-        end
-        Artisan_UpdateSkillList()
-        ArtisanEditorRight_Update()
+    if categoryName == "" or not tabName then
+        return
     end
+    tinsert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
+    for k in pairs(ARTISAN_CUSTOM[tabName]) do
+        if ARTISAN_CUSTOM[tabName][k].name == categoryName then
+            ArtisanEditor.currentHeader = k
+        end
+    end
+    Artisan_UpdateSkillList()
+    ArtisanEditorRight_Update()
 end
 
 function ArtisanEditor_RenameCategory(into)
     into = strtrim(into)
-    if into ~= "" then
-        ARTISAN_CUSTOM[ArtisanFrame.selectedTabName][ArtisanEditor.currentHeader].name = into
-        Artisan_UpdateSkillList()
-        ArtisanEditorRight_Update()
+    if into == "" then
+        return
     end
+    ARTISAN_CUSTOM[ArtisanFrame.selectedTabName][ArtisanEditor.currentHeader].name = into
+    Artisan_UpdateSkillList()
+    ArtisanEditorRight_Update()
 end
 
 function ArtisanItem_OnEnter()
-    GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT")
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
     local skill = ArtisanFrame.selectedSkill
 
+    if not (tab and sorting and skill) then
+        return
+    end
+
+    GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT")
     if ArtisanFrame.craft then
         local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
         GameTooltip:SetCraftItem(originalID, this:GetID())
