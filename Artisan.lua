@@ -75,13 +75,8 @@ local GREY = GRAY_FONT_COLOR_CODE
 local BLUE = "|cff0070de"
 
 print = print or function(...)
-    local size = getn(arg)
-    for i = 1, size do
-        arg[i] = tostring(arg[i])
-    end
-    local msg = size > 1 and table.concat(arg, ", ") or tostring(arg[1])
-    DEFAULT_CHAT_FRAME:AddMessage(msg)
-    return msg
+    for i = 1, getn(arg) do arg[i] = tostring(arg[i]) end
+    DEFAULT_CHAT_FRAME:AddMessage(table.concat(arg, " "))
 end
 
 local getn = table.getn
@@ -196,14 +191,12 @@ function ArtisanFrame_OnLoad()
     this:RegisterEvent("BAG_UPDATE")
     this:RegisterEvent("PLAYER_ENTERING_WORLD")
     this:RegisterEvent("UNIT_PORTRAIT_UPDATE")
-    this:RegisterEvent("CRAFT_UPDATE")
     this:RegisterEvent("UPDATE_TRADESKILL_RECAST")
     this:RegisterEvent("SPELLS_CHANGED")
     this:RegisterEvent("UNIT_PET_TRAINING_POINTS")
     this:RegisterEvent("TRADE_SKILL_SHOW")
     this:RegisterEvent("TRADE_SKILL_CLOSE")
     this:RegisterEvent("TRADE_SKILL_UPDATE")
-    this:RegisterEvent("UPDATE_TRADESKILL_RECAST")
     this:RegisterEvent("CRAFT_SHOW")
     this:RegisterEvent("CRAFT_CLOSE")
     this:RegisterEvent("CRAFT_UPDATE")
@@ -304,7 +297,6 @@ function ArtisanFrame_OnUpdate(deltaTime)
     timer = timer - deltaTime
     if timer <= 0 then
         timer = nil
-        ArtisanFrame.instant = nil
         Artisan_SetupSideTabs()
         Artisan_Reselect()
         ArtisanFrame_Search()
@@ -366,7 +358,14 @@ function ArtisanFrame_OnEvent()
     elseif event == "UNIT_PET_TRAINING_POINTS" then
 		Artisan_UpdateTrainingPoints()
     elseif event == "TRADE_SKILL_UPDATE" or event == "CRAFT_UPDATE" then
-        timer = ArtisanFrame.instant or updateDelay
+        local canUpdateNow
+        for k, v in pairs(playerProfessions) do
+            if v.name == ArtisanFrame.selectedTabName then
+                canUpdateNow = not v.initial
+                break
+            end
+        end
+        timer = canUpdateNow and 0 or updateDelay
     elseif event == "TRADE_SKILL_SHOW" then
         CloseCraft()
         ArtisanFrame_Show()
@@ -822,9 +821,9 @@ function ArtisanFrame_Update()
         end
         craftButtonCost:SetText("")
 
-        if ( craftIndex > 0 and craftIndex <= numCrafts ) then
+        if craftIndex > 0 and craftIndex <= numCrafts then
             -- Set button widths if scrollbar is shown or hidden
-            if ( ArtisanListScrollFrame:IsShown() ) then
+            if ArtisanListScrollFrame:IsShown() then
                 craftButton:SetWidth(293)
             else
                 craftButton:SetWidth(323)
@@ -842,10 +841,10 @@ function ArtisanFrame_Update()
             craftButton.type = craftType
             craftButton:Show()
             -- Handle headers
-            if ( craftType == "header" ) then
+            if craftType == "header" then
                 craftButton:SetText(craftName)
                 craftButtonSubText:SetText("")
-                if ( isExpanded == 1 ) then
+                if isExpanded == 1 then
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
                 else
                     craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
@@ -864,14 +863,14 @@ function ArtisanFrame_Update()
                 if craftName then
                     -- remove (Rank) from name
                     craftName = gsub(craftName, "  %(Rank %d+%)", "")
-                    if ( numAvailable == 0 ) then
+                    if numAvailable == 0 then
                         craftButton:SetText(indent..craftName)
                     else
                         craftButton:SetText(indent..craftName.." ["..numAvailable.."]")
                     end
                 end
                 -- (Rank)
-                if ( craftSubSpellName and craftSubSpellName ~= "" ) then
+                if craftSubSpellName and craftSubSpellName ~= "" then
                     craftButtonSubText:SetText(format(PARENS_TEMPLATE, craftSubSpellName))
                 else
                     craftButtonSubText:SetText("")
@@ -879,7 +878,7 @@ function ArtisanFrame_Update()
                 -- TP
                 craftButtonCost:SetText("")
                 if tab == "Beast Training" and UnitName("pet") then
-                    if ( trainingPointCost and trainingPointCost > 0 ) then
+                    if trainingPointCost and trainingPointCost > 0 then
                         craftButtonCost:SetText(format(TRAINER_LIST_TP, trainingPointCost))
                     else
                         craftButtonCost:SetText("")
@@ -910,19 +909,19 @@ function ArtisanFrame_Update()
     local notExpanded = 0
     for i = 1, numCrafts, 1 do
         local craftName, craftType, numAvailable, isExpanded = Artisan_GetCraftInfo(i)
-        if ( craftName and craftType == "header" ) then
+        if craftName and craftType == "header" then
             numHeaders = numHeaders + 1
             if ( not isExpanded or isExpanded == 0) then
                 notExpanded = notExpanded + 1
             end
         end
-        if ( ArtisanFrame.selectedSkill and ArtisanFrame.selectedSkill == i ) then
+        if ArtisanFrame.selectedSkill and ArtisanFrame.selectedSkill == i then
             -- Set the max makeable items for the create all button
             ArtisanFrame.numAvailable = numAvailable
         end
     end
     -- If all headers are not expanded then show collapse button, otherwise show the expand button
-    if ( notExpanded ~= numHeaders ) then
+    if notExpanded ~= numHeaders then
         ArtisanCollapseAllButton.collapsed = nil
         ArtisanCollapseAllButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
     else
@@ -935,19 +934,15 @@ function Artisan_SetSelection(id)
     if not (ArtisanFrame.selectedTabName and id) then
         return
     end
-    
-    -- if ArtisanFrameSearchBox:GetText() ~= "" and getn(searchResults) == 0 then
-    --     return
-    -- end
 
     ArtisanHighlightFrame:Show()
 
     local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = Artisan_GetCraftInfo(id)
     -- If the type of the selection is header, don't process all the craft details
-    if ( craftType == "header" ) then
+    if craftType == "header" then
         ArtisanHighlightFrame:Hide()
         if (getn(searchResults) == 0) then
-            if ( isExpanded and isExpanded == 1 ) then
+            if isExpanded and isExpanded == 1 then
                 Artisan_CollapseCraftSkillLine(id)
             else
                 Artisan_ExpandCraftSkillLine(id)
@@ -959,7 +954,7 @@ function Artisan_SetSelection(id)
     ArtisanFrame.selectedSkill = id
     Artisan_SelectCraft(id)
 
-    if ( id > Artisan_GetNumCrafts() ) then
+    if id > Artisan_GetNumCrafts() then
         return
     end
 
@@ -1014,14 +1009,15 @@ function Artisan_SetSelection(id)
         local reagent = _G["ArtisanReagent"..i]
         local name = _G["ArtisanReagent"..i.."Name"]
         local count = _G["ArtisanReagent"..i.."Count"]
-        if ( not reagentName or not reagentTexture ) then
+        if not reagentName or not reagentTexture then
             reagent:Hide()
+            creatable = false
         else
             reagent:Show()
             SetItemButtonTexture(reagent, reagentTexture)
             name:SetText(reagentName)
             -- Grayout items
-            if ( playerReagentCount < reagentCount ) then
+            if playerReagentCount < reagentCount then
                 SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
                 name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
                 creatable = false
@@ -1029,7 +1025,7 @@ function Artisan_SetSelection(id)
                 SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
                 name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
             end
-            if ( playerReagentCount >= 100 ) then
+            if playerReagentCount >= 100 then
                 playerReagentCount = "*"
             end
             count:SetText(playerReagentCount.." /"..reagentCount)
@@ -1041,11 +1037,11 @@ function Artisan_SetSelection(id)
     end
 
     local tools = BuildColoredListString(Artisan_GetCraftTools(id))
-    if ( tools ) then
+    if tools then
         ArtisanRequirementLabel:Show()
         ArtisanRequirementText:SetText(tools)
-    elseif ( requiredLevel and requiredLevel > 0 ) then
-        if ( UnitLevel("pet") >= requiredLevel ) then
+    elseif requiredLevel and requiredLevel > 0 then
+        if UnitLevel("pet") >= requiredLevel then
             ArtisanRequirementLabel:Show()
             ArtisanRequirementText:SetText(format(TRAINER_PET_LEVEL, requiredLevel))
         else
@@ -1057,10 +1053,10 @@ function Artisan_SetSelection(id)
         ArtisanRequirementText:SetText("")
     end
 
-    if ( trainingPointCost and trainingPointCost > 0 ) then
+    if trainingPointCost and trainingPointCost > 0 then
         local totalPoints, spent = GetPetTrainingPoints()
         local usablePoints = totalPoints - spent
-        if ( usablePoints >= trainingPointCost ) then
+        if usablePoints >= trainingPointCost then
             ArtisanCraftCost:SetText(COSTS_LABEL.." "..trainingPointCost.." "..TRAINING_POINTS_LABEL)
         else
             ArtisanCraftCost:SetText(COSTS_LABEL.." "..RED_FONT_COLOR_CODE..trainingPointCost..FONT_COLOR_CODE_CLOSE.." "..TRAINING_POINTS_LABEL)
@@ -1070,11 +1066,11 @@ function Artisan_SetSelection(id)
         ArtisanCraftCost:Hide()
     end
 
-    if ( craftType == "used" ) then
+    if craftType == "used" then
         creatable = false
     end
 
-    if ( creatable ) then
+    if creatable then
         ArtisanFrameCreateButton:Enable()
         ArtisanFrameCreateAllButton:Enable()
     else
@@ -1234,8 +1230,6 @@ function ArtisanSideTab_OnCLick()
         return
     end
 
-    ArtisanFrame.instant = 0
-
     if this.name ~= ArtisanFrame.selectedTabName then
         ArtisanFrame.craft = this.name == "Enchanting" or this.name == "Beast Training" or this.name == "Disguise"
         ArtisanFrame.selectedTabName = this.name
@@ -1263,14 +1257,14 @@ function ArtisanSideTab_OnCLick()
 end
 
 function ArtisanFrameIncrementButton_OnClick()
-	if ( ArtisanFrameInputBox:GetNumber() < 100 ) then
+	if ArtisanFrameInputBox:GetNumber() < 100 then
 		ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() + 1)
 	end
     ArtisanFrameSearchBox:ClearFocus()
 end
 
 function ArtisanFrameDecrementButton_OnClick()
-	if ( ArtisanFrameInputBox:GetNumber() > 0 ) then
+	if ArtisanFrameInputBox:GetNumber() > 0 then
 		ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() - 1)
 	end
     ArtisanFrameSearchBox:ClearFocus()
@@ -1360,8 +1354,6 @@ function Artisan_CollapseCraftSkillLine(id)
         return
     end
 
-    ArtisanFrame.instant = 0
-
     if not ArtisanFrame.craft and sorting == "default" then
         CollapseTradeSkillSubClass(id)
         ArtisanFrame_Search()
@@ -1416,8 +1408,6 @@ function Artisan_ExpandCraftSkillLine(id)
     if not (tab and sorting) then
         return
     end
-
-    ArtisanFrame.instant = 0
 
     if not ArtisanFrame.craft and sorting == "default" then
         ExpandTradeSkillSubClass(id)
@@ -1569,7 +1559,9 @@ function Artisan_GetNumCrafts()
     if not ArtisanFrame.craft and sorting == "default" then
         return GetNumTradeSkills()
     end
-
+    if not (ARTISAN_SKILLS[tab] and ARTISAN_SKILLS[tab][sorting]) then
+        return 0
+    end
     return getn(ARTISAN_SKILLS[tab][sorting])
 end
 
