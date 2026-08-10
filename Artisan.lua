@@ -66,7 +66,7 @@ local TypeColor = {
     ["none"]    = { r = 0.25, g = 0.75, b = 0.25 },
 }
 
-tinsert(UISpecialFrames, "ArtisanFrame")
+table.insert(UISpecialFrames, "ArtisanFrame")
 
 local YELLOW = NORMAL_FONT_COLOR_CODE
 local WHITE = HIGHLIGHT_FONT_COLOR_CODE
@@ -75,18 +75,14 @@ local GREY = GRAY_FONT_COLOR_CODE
 local BLUE = "|cff0070de"
 
 print = print or function(...)
-    for i = 1, getn(arg) do arg[i] = tostring(arg[i]) end
+    for i = 1, table.getn(arg) do arg[i] = tostring(arg[i]) end
     DEFAULT_CHAT_FRAME:AddMessage(table.concat(arg, " "))
 end
 
-local getn = table.getn
-local tinsert = table.insert
-local tremove = table.remove
-
 local function wipe(tbl)
 	if type(tbl) ~= "table" then return end
-    for i = getn(tbl), 1, -1 do
-        tremove(tbl, i)
+    for i = table.getn(tbl), 1, -1 do
+        table.remove(tbl, i)
     end
 end
 
@@ -117,11 +113,11 @@ local function strsplit(str, delimiter)
     local from = 1
     local delim_from, delim_to = string.find(str, delimiter, from, true)
     while delim_from do
-        tinsert(splitResult, string.sub(str, from, delim_from - 1))
+        table.insert(splitResult, string.sub(str, from, delim_from - 1))
         from = delim_to + 1
         delim_from, delim_to = string.find(str, delimiter, from, true)
     end
-    tinsert(splitResult, string.sub(str, from))
+    table.insert(splitResult, string.sub(str, from))
     return splitResult
 end
 
@@ -160,10 +156,10 @@ function ArtisanFrame_Search()
                             end
                         end
                         if match then
-                            tinsert(searchResults, i)
+                            table.insert(searchResults, i)
                         end
                     else
-                        tinsert(searchResults, i)
+                        table.insert(searchResults, i)
                     end
                 elseif not reagentsFilter then
                     if query ~= "" then
@@ -176,7 +172,7 @@ function ArtisanFrame_Search()
                             end
                         end
                         if match then
-                            tinsert(searchResults, i)
+                            table.insert(searchResults, i)
                         end
                     end
                 end
@@ -417,8 +413,6 @@ function ArtisanFrame_Show()
         ShowUIPanel(ArtisanFrame)
     end
 
-    -- Artisan_SetupSideTabs()
-
     if not ArtisanFrame.selectedTabName then
         HideUIPanel(ArtisanFrame)
         return
@@ -450,26 +444,18 @@ function Artisan_Reselect()
         return
     end
 
-    if sorting == "default" and not ArtisanFrame.craft then
-        if GetTradeSkillSelectionIndex() > 1 and GetTradeSkillSelectionIndex() <= GetNumTradeSkills() then
-            Artisan_SetSelection(GetTradeSkillSelectionIndex())
-        else
-            Artisan_SetSelection(GetFirstTradeSkill())
-            FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-            ArtisanListScrollFrameScrollBar:SetValue(0)
-        end
-    else
+    if sorting == "custom" or ArtisanFrame.craft then
         Artisan_UpdateSkillList()
-        local selection = ArtisanFrame.selectedSkill
-        local numCrafts = Artisan_GetNumCrafts()
-        if selection > 1 and selection <= numCrafts then
-            Artisan_SetSelection(selection)
-        else
-            Artisan_SetSelection(Artisan_GetFirstCraft())
-            FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-            ArtisanListScrollFrame:SetVerticalScroll(0)
-            ArtisanListScrollFrameScrollBar:SetValue(0)
-        end
+    end
+    local selection = Artisan_GetCraftSelectionIndex()
+    local numCrafts = Artisan_GetNumCrafts()
+    if selection > 1 and selection <= numCrafts then
+        Artisan_SetSelection(selection)
+    else
+        Artisan_SetSelection(Artisan_GetFirstCraft())
+        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+        ArtisanListScrollFrame:SetVerticalScroll(0)
+        ArtisanListScrollFrameScrollBar:SetValue(0)
     end
 end
 
@@ -489,8 +475,8 @@ function Artisan_SetupSideTabs()
     tabIndex = 1
     local tabButton
 
-    for p = 1, getn(tabsOrder) do
-        for index = 1, getn(playerProfessions) do
+    for p = 1, table.getn(tabsOrder) do
+        for index = 1, table.getn(playerProfessions) do
             local spellName = playerProfessions[index].name
             local active = playerProfessions[index].active
             if tabsOrder[p][spellName] then
@@ -543,18 +529,16 @@ function Artisan_UpdateSkillList()
     local tab = ArtisanFrame.selectedTabName
     local sorting = ARTISAN_CONFIG.sorting[tab]
 
-    if not (tab and sorting) then
-        return
-    end
+    if not (tab and sorting) then return end
 
-    local numHeaders = 0
+    if not ARTISAN_SKILLS[tab] then ARTISAN_SKILLS[tab] = {} end
+    if not ARTISAN_SKILLS[tab][sorting] then ARTISAN_SKILLS[tab][sorting] = {} end
 
-    ARTISAN_SKILLS[tab] = ARTISAN_SKILLS[tab] or {}
-    ARTISAN_SKILLS[tab][sorting] = ARTISAN_SKILLS[tab][sorting] or {}
+    if not collapsedHeaders then collapsedHeaders = {} end
+    if not collapsedHeaders[tab] then collapsedHeaders[tab] = {} end
+    if not collapsedHeaders[tab][sorting] then collapsedHeaders[tab][sorting] = {} end
 
-    collapsedHeaders = collapsedHeaders or {}
-    collapsedHeaders[tab] = collapsedHeaders[tab] or {}
-    collapsedHeaders[tab][sorting] = collapsedHeaders[tab][sorting] or {}
+    local selectionName, selectionType = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
 
     wipe(ARTISAN_SKILLS[tab][sorting])
 
@@ -564,7 +548,6 @@ function Artisan_UpdateSkillList()
             ARTISAN_SKILLS[tab][sorting][0] = ARTISAN_SKILLS[tab][sorting][0] or { name = "All", type = "header", exp = 1, childs = {} }
             wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
             ARTISAN_SKILLS[tab][sorting][0].exp = 1
-            numHeaders = 1
             local headerIndex = 0
             for i = GetNumCrafts(), 1, -1 do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
@@ -590,18 +573,17 @@ function Artisan_UpdateSkillList()
                     end
                     if not found then
                         -- add new header
-                        numHeaders = numHeaders + 1
-                        tinsert(ARTISAN_SKILLS[tab][sorting][0].childs, header)
-                        tinsert(ARTISAN_SKILLS[tab][sorting], { name = header, type = "header", childs = {} })
-                        headerIndex = getn(ARTISAN_SKILLS[tab][sorting])
+                        table.insert(ARTISAN_SKILLS[tab][sorting][0].childs, header)
+                        table.insert(ARTISAN_SKILLS[tab][sorting], { name = header, type = "header", childs = {} })
+                        headerIndex = table.getn(ARTISAN_SKILLS[tab][sorting])
                         if not collapsedHeaders[tab][sorting][header] then
                             ARTISAN_SKILLS[tab][sorting][headerIndex].exp = 1
                         end
                     end
                     -- add this skill
-                    tinsert(ARTISAN_SKILLS[tab][sorting][headerIndex].childs, name)
+                    table.insert(ARTISAN_SKILLS[tab][sorting][headerIndex].childs, name)
                     if ARTISAN_SKILLS[tab][sorting][headerIndex].exp == 1 then
-                        tinsert(ARTISAN_SKILLS[tab][sorting], headerIndex + 1, {
+                        table.insert(ARTISAN_SKILLS[tab][sorting], headerIndex + 1, {
                             name = name,
                             type = type,
                             num = num,
@@ -619,7 +601,7 @@ function Artisan_UpdateSkillList()
             for i = GetNumCrafts(), 1, -1 do
                 local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
                 if name then
-                    tinsert(ARTISAN_SKILLS[tab][sorting], {
+                    table.insert(ARTISAN_SKILLS[tab][sorting], {
                         name = name,
                         sub = sub,
                         type = type,
@@ -638,8 +620,8 @@ function Artisan_UpdateSkillList()
         wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
         ARTISAN_CUSTOM[tab] = ARTISAN_CUSTOM[tab] or {}
         -- copy custom categories into main table
-        for i = 1, getn(ARTISAN_CUSTOM[tab]) do
-            tinsert(ARTISAN_SKILLS[tab][sorting], ARTISAN_CUSTOM[tab][i])
+        for i = 1, table.getn(ARTISAN_CUSTOM[tab]) do
+            table.insert(ARTISAN_SKILLS[tab][sorting], ARTISAN_CUSTOM[tab][i])
         end
         -- make "Uncategorized" category if possible
         if not ARTISAN_UNCATEGORIZED[tab] then
@@ -647,21 +629,19 @@ function Artisan_UpdateSkillList()
         end
         if next(ARTISAN_UNCATEGORIZED[tab]) then
             local isExpanded = not collapsedHeaders[tab][sorting]["Uncategorized"] and 1 or nil
-            tinsert(ARTISAN_SKILLS[tab][sorting], { name = "Uncategorized", type = "header", exp = isExpanded, childs = {} })
-            local uncatHeaderIndex = getn(ARTISAN_SKILLS[tab][sorting])
-            for i = 1, getn(ARTISAN_UNCATEGORIZED[tab]) do
+            table.insert(ARTISAN_SKILLS[tab][sorting], { name = "Uncategorized", type = "header", exp = isExpanded, childs = {} })
+            local uncatHeaderIndex = table.getn(ARTISAN_SKILLS[tab][sorting])
+            for i = 1, table.getn(ARTISAN_UNCATEGORIZED[tab]) do
                 if isExpanded then
-                    tinsert(ARTISAN_SKILLS[tab][sorting], ARTISAN_UNCATEGORIZED[tab][i])
+                    table.insert(ARTISAN_SKILLS[tab][sorting], ARTISAN_UNCATEGORIZED[tab][i])
                 end
-                tinsert(ARTISAN_SKILLS[tab][sorting][uncatHeaderIndex].childs, ARTISAN_UNCATEGORIZED[tab][i].name)
+                table.insert(ARTISAN_SKILLS[tab][sorting][uncatHeaderIndex].childs, ARTISAN_UNCATEGORIZED[tab][i].name)
             end
-            numHeaders = numHeaders + 1
         end
         -- set headers expanded state
-        for i = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
+        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
             if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
-                numHeaders = numHeaders + 1
-                tinsert(ARTISAN_SKILLS[tab][sorting][0].childs, ARTISAN_SKILLS[tab][sorting][i].name)
+                table.insert(ARTISAN_SKILLS[tab][sorting][0].childs, ARTISAN_SKILLS[tab][sorting][i].name)
                 ARTISAN_SKILLS[tab][sorting][i].exp = not collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] and 1 or nil
             end
         end
@@ -671,14 +651,14 @@ function Artisan_UpdateSkillList()
                 for _, v2 in pairs(v.childs) do
                     for k3, v3 in pairs(ARTISAN_SKILLS[tab][sorting]) do
                         if v3.name == v2 then
-                            tremove(ARTISAN_SKILLS[tab][sorting], k3)
+                            table.remove(ARTISAN_SKILLS[tab][sorting], k3)
                         end
                     end
                 end
             end
         end
         -- update attributes
-        for i = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
+        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
             if ARTISAN_SKILLS[tab][sorting].type ~= "header" then
                 for id = 1, C_GetNumCrafts() do
                     local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = C_GetCraftInfo(id)
@@ -702,7 +682,16 @@ function Artisan_UpdateSkillList()
         end
     end
 
-    return numHeaders
+    if selectionName then
+        for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
+            if v.name == selectionName then
+                Artisan_SelectCraft(k)
+                return
+            end
+        end
+    end
+
+    Artisan_SelectCraft(0)
 end
 
 function ArtisanFrame_Update()
@@ -715,12 +704,13 @@ function ArtisanFrame_Update()
 
 	local craftOffset = FauxScrollFrame_GetOffset(ArtisanListScrollFrame)
     local numCrafts = Artisan_GetNumCrafts()
+    local selection = Artisan_GetCraftSelectionIndex()
     local name, rank, maxRank = Artisan_GetCraftSkillLine()
-    local headers = 0
+    local numHeaders = 0
     if sorting == "custom" or ArtisanFrame.craft then
         for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
             if v.type == "header" then
-                headers = headers + 1
+                numHeaders = numHeaders + 1
             end
         end
     end
@@ -754,7 +744,7 @@ function ArtisanFrame_Update()
         ArtisanRankFrame:Hide()
     end
 
-	if (numCrafts - headers < 0) then
+	if numCrafts - numHeaders < 0 then
 		ArtisanSkillName:Hide()
         ArtisanSkillIcon:Hide()
 		ArtisanRequirementLabel:Hide()
@@ -785,7 +775,7 @@ function ArtisanFrame_Update()
     Artisan_UpdateTrainingPoints()
     ArtisanHighlightFrame:Hide()
 
-    local results = getn(searchResults)
+    local results = table.getn(searchResults)
     local craftsToUpdate = 0
 
     if ArtisanFrameSearchBox:GetText() ~= "" or ARTISAN_CONFIG.reagents[tab] then
@@ -886,7 +876,7 @@ function ArtisanFrame_Update()
                 end
                 craftButtonSubText:SetPoint("LEFT", "ArtisanFrameSkill"..i.."Text", "RIGHT", 10, 0)
                 -- Place the highlight and lock the highlight state
-                if (ArtisanFrame.selectedSkill == craftIndex) then
+                if selection == craftIndex then
                     ArtisanHighlightFrame:SetPoint("TOPLEFT", "ArtisanFrameSkill"..i, "TOPLEFT", 0, 0)
                     ArtisanHighlightFrame:Show()
                     craftButtonSubText:SetTextColor(1.0, 1.0, 1.0)
@@ -911,11 +901,11 @@ function ArtisanFrame_Update()
         local craftName, craftType, numAvailable, isExpanded = Artisan_GetCraftInfo(i)
         if craftName and craftType == "header" then
             numHeaders = numHeaders + 1
-            if ( not isExpanded or isExpanded == 0) then
+            if not isExpanded then
                 notExpanded = notExpanded + 1
             end
         end
-        if ArtisanFrame.selectedSkill and ArtisanFrame.selectedSkill == i then
+        if selection == i then
             -- Set the max makeable items for the create all button
             ArtisanFrame.numAvailable = numAvailable
         end
@@ -935,35 +925,34 @@ function Artisan_SetSelection(id)
         return
     end
 
-    ArtisanHighlightFrame:Show()
-
     local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = Artisan_GetCraftInfo(id)
     -- If the type of the selection is header, don't process all the craft details
     if craftType == "header" then
-        ArtisanHighlightFrame:Hide()
-        if (getn(searchResults) == 0) then
-            if isExpanded and isExpanded == 1 then
+        if (table.getn(searchResults) == 0) then
+            if isExpanded then
                 Artisan_CollapseCraftSkillLine(id)
             else
                 Artisan_ExpandCraftSkillLine(id)
             end
         end
+        ArtisanHighlightFrame:Hide()
+        return
+    else
+        ArtisanHighlightFrame:Show()
+    end
+
+    if id > Artisan_GetNumCrafts() then
         return
     end
 
     ArtisanFrame.selectedSkill = id
     Artisan_SelectCraft(id)
 
-    if id > Artisan_GetNumCrafts() then
-        return
-    end
-
     local color = TypeColor[craftType]
     if color then
         ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
     end
-    craftName = gsub(craftName or "", "  %(Rank %d+%)", "")
-    ArtisanSkillName:SetText(craftName)
+    ArtisanSkillName:SetText(gsub(craftName or "", "  %(Rank %d+%)", ""))
     ArtisanSkillIcon:SetNormalTexture(Artisan_GetCraftIcon(id))
     ArtisanSkillCooldown:SetText("")
     ArtisanSkillIconCount:SetText("")
@@ -977,7 +966,7 @@ function Artisan_SetSelection(id)
         ArtisanSkillCooldown:SetText("")
     end
     -- Description text
-    if ( Artisan_GetCraftDescription(id) and ArtisanFrame.selectedTabName == "Beast Training") then
+    if Artisan_GetCraftDescription(id) and ArtisanFrame.selectedTabName == "Beast Training" then
         ArtisanCraftDescription:Show()
         ArtisanCraftDescription:SetText(Artisan_GetCraftDescription(id))
         ArtisanReagentLabel:Hide()
@@ -1002,7 +991,7 @@ function Artisan_SetSelection(id)
         end
     end
     -- Reagents
-    local creatable = true
+    local creatable = craftName and true or false
     local numReagents = Artisan_GetCraftNumReagents(id)
     for i=1, numReagents, 1 do
         local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan_GetCraftReagentInfo(id, i)
@@ -1114,8 +1103,9 @@ function Artisan_SetSelection(id)
 end
 
 function Artisan_UpdateTrainingPoints()
-    local totalPoints, spent = GetPetTrainingPoints()
-	if totalPoints > 0 and ArtisanFrame.selectedTabName == "Beast Training" then
+    local hasPetUI, canGainXP = HasPetUI()
+	if hasPetUI and canGainXP and ArtisanFrame.selectedTabName == "Beast Training" then
+        local totalPoints, spent = GetPetTrainingPoints()
 		ArtisanFramePointsLabel:Show()
 		ArtisanFramePointsText:Show()
 		ArtisanFramePointsText:SetText(totalPoints - spent)
@@ -1233,9 +1223,8 @@ function ArtisanSideTab_OnCLick()
     if this.name ~= ArtisanFrame.selectedTabName then
         ArtisanFrame.craft = this.name == "Enchanting" or this.name == "Beast Training" or this.name == "Disguise"
         ArtisanFrame.selectedTabName = this.name
-        Artisan_UpdateSkillList()
-        ArtisanFrame.selectedSkill = Artisan_GetFirstCraft()
         CastSpellByName(this.name)
+        Artisan_UpdateSkillList()
         Artisan_SetSelection(Artisan_GetFirstCraft())
     end
 
@@ -1367,11 +1356,11 @@ function Artisan_CollapseCraftSkillLine(id)
         return
     end
 
-    if id == 0 then
+    if id <= 0 then
         ArtisanFrame.selectedSkill = 0
         -- collapse all
-        for i = 0, getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting][i].type == "header" and not collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] then
+        for i = 0, table.getn(ARTISAN_SKILLS[tab][sorting]) do
+            if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
                 collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] = true
             end
         end
@@ -1380,23 +1369,25 @@ function Artisan_CollapseCraftSkillLine(id)
     else
         -- collapse only 1
         local headerName = ARTISAN_SKILLS[tab][sorting][id].name
-        if not collapsedHeaders[tab][sorting][headerName]then
-            collapsedHeaders[tab][sorting][headerName] = true
-        end
-        local skill = ArtisanFrame.selectedSkill
-        local skillName = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
-        local offset = getn(ARTISAN_SKILLS[tab][sorting][id].childs) or 0
+        collapsedHeaders[tab][sorting][headerName] = true
         Artisan_UpdateSkillList()
-        local first = Artisan_GetFirstCraft()
-        if first == 0 then
-            skill = 0
-        elseif id < ArtisanFrame.selectedSkill then
-            skill = ArtisanFrame.selectedSkill - offset
-            if first > skill or listContains(ARTISAN_SKILLS[tab][sorting][id].childs, nil, skillName) then
-                skill = first
+        local allCollapsed = true
+        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
+            if ARTISAN_SKILLS[tab][sorting][i].exp then
+                allCollapsed = false
+                break
             end
         end
-        Artisan_SetSelection(skill)
+        if allCollapsed then
+            Artisan_SetSelection(0)
+        else
+            local selection = Artisan_GetCraftSelectionIndex()
+            if selection > 1 and selection <= Artisan_GetNumCrafts() and ARTISAN_SKILLS[tab][sorting][selection] and ARTISAN_SKILLS[tab][sorting][selection].type ~= "header" then
+                Artisan_SetSelection(selection)
+            else
+                Artisan_SetSelection(Artisan_GetFirstCraft())
+            end
+        end
     end
     ArtisanFrame_Search()
 end
@@ -1415,43 +1406,36 @@ function Artisan_ExpandCraftSkillLine(id)
         return
     end
 
-	if not ARTISAN_SKILLS[tab][sorting][id].childs then
-		return
-	end
-
-    local headerName = ARTISAN_SKILLS[tab][sorting][id].name
-    local offset = getn(ARTISAN_SKILLS[tab][sorting][id].childs) or 0
-
     if ARTISAN_SKILLS[tab][sorting][id].type ~= "header" then
         return
     end
 
-    if id == 0 then
+	if not ARTISAN_SKILLS[tab][sorting][id].childs then
+		return
+	end
+
+    if not collapsedHeaders[tab] then collapsedHeaders[tab] = {} end
+    if not collapsedHeaders[tab][sorting] then collapsedHeaders[tab][sorting] = {} end
+
+    if id <= 0 then
         -- expand all
-        for i = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
+        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
             if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
-                headerName = ARTISAN_SKILLS[tab][sorting][i].name
-                if collapsedHeaders[tab] and collapsedHeaders[tab][sorting] then
-                    collapsedHeaders[tab][sorting][headerName] = nil
-                end
+                collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] = nil
             end
         end
         Artisan_UpdateSkillList()
         Artisan_SetSelection(Artisan_GetFirstCraft())
     else
         -- expand 1
-        if collapsedHeaders[tab][sorting][headerName] then
-            collapsedHeaders[tab][sorting][headerName] = nil
-        end
+        local headerName = ARTISAN_SKILLS[tab][sorting][id].name
+        collapsedHeaders[tab][sorting][headerName] = nil
         Artisan_UpdateSkillList()
-        if id > ArtisanFrame.selectedSkill then
-            if ArtisanFrame.selectedSkill ~= 0 then
-                Artisan_SetSelection(ArtisanFrame.selectedSkill)
-            else
-                Artisan_SetSelection(Artisan_GetFirstCraft())
-            end
+        local selection = Artisan_GetCraftSelectionIndex()
+        if selection > 1 and selection <= Artisan_GetNumCrafts() and ARTISAN_SKILLS[tab][sorting][selection] and ARTISAN_SKILLS[tab][sorting][selection].type ~= "header" then
+            Artisan_SetSelection(selection)
         else
-            Artisan_SetSelection(ArtisanFrame.selectedSkill + offset)
+            Artisan_SetSelection(Artisan_GetFirstCraft())
         end
     end
     ArtisanFrame_Search()
@@ -1507,18 +1491,13 @@ function Artisan_GetFirstCraft()
         return GetFirstTradeSkill()
     end
 
-    if tab == "Beast Training" or tab == "Disguise" then
-        if sorting == "default" then
-            return 1
-        end
-    end
-
     ARTISAN_SKILLS[tab] = ARTISAN_SKILLS[tab] or {}
     ARTISAN_SKILLS[tab][sorting] = ARTISAN_SKILLS[tab][sorting] or {}
 
-    for k = 1, getn(ARTISAN_SKILLS[tab][sorting]) do
-        if ARTISAN_SKILLS[tab][sorting][k].type == "header" and ARTISAN_SKILLS[tab][sorting][k].exp == 1 then
-            return k + 1
+    for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
+        local skillType = ARTISAN_SKILLS[tab][sorting][i].type
+        if skillType and skillType ~= "" and skillType ~= "header" then
+            return i
         end
     end
 
@@ -1562,7 +1541,7 @@ function Artisan_GetNumCrafts()
     if not (ARTISAN_SKILLS[tab] and ARTISAN_SKILLS[tab][sorting]) then
         return 0
     end
-    return getn(ARTISAN_SKILLS[tab][sorting])
+    return table.getn(ARTISAN_SKILLS[tab][sorting])
 end
 
 function Artisan_SelectCraft(id)
@@ -1571,6 +1550,7 @@ function Artisan_SelectCraft(id)
     if not (tab and sorting and id) then
         return
     end
+    id = max(0, id)
     if not ArtisanFrame.craft then
         if sorting == "default" then
             return SelectTradeSkill(id)
@@ -1583,6 +1563,25 @@ function Artisan_SelectCraft(id)
         local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
         SelectCraft(originalID)
     end
+end
+
+function Artisan_GetCraftSelectionIndex()
+    local tab = ArtisanFrame.selectedTabName
+    local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not (tab and sorting) then return 0, 0 end
+    local trueIndex = 0
+    if ArtisanFrame.craft then
+        trueIndex = GetCraftSelectionIndex()
+    else
+        trueIndex = GetTradeSkillSelectionIndex()
+        if sorting == "default" then return trueIndex, trueIndex end
+    end
+    if ARTISAN_SKILLS[tab] and ARTISAN_SKILLS[tab][sorting] then
+        for index, data in pairs(ARTISAN_SKILLS[tab][sorting]) do
+            if data.id == trueIndex then return index, trueIndex end
+        end
+    end
+    return 0, 0
 end
 
 function Artisan_GetCraftIcon(id)
@@ -1708,6 +1707,9 @@ function ArtisanSortDefault_OnClick()
         if ArtisanEditor:IsShown() then
             ArtisanEditor:Hide()
         end
+        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+        ArtisanListScrollFrame:SetVerticalScroll(0)
+        ArtisanDetailScrollFrame:SetVerticalScroll(0)
     else
         this:SetChecked(1)
     end
@@ -1724,6 +1726,9 @@ function ArtisanSortCustom_OnClick()
         Artisan_SetSelection(Artisan_GetFirstCraft())
         ArtisanFrame_Search()
         ArtisanFrameEditButton:Show()
+        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+        ArtisanListScrollFrame:SetVerticalScroll(0)
+        ArtisanDetailScrollFrame:SetVerticalScroll(0)
     else
         this:SetChecked(1)
     end
@@ -1738,6 +1743,9 @@ function Artisan_HaveReagents_OnClick()
         ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName] = false
         this:SetChecked(nil)
     end
+    FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+    ArtisanListScrollFrame:SetVerticalScroll(0)
+    ArtisanDetailScrollFrame:SetVerticalScroll(0)
     Artisan_UpdateSkillList()
     ArtisanFrame_Search()
 end
@@ -1750,10 +1758,10 @@ function ArtisanEditorLeftButton_OnClick()
     local tabName = ArtisanFrame.selectedTabName
     local name, type, num, sub, tp, lvl, id = this.name, this.type, this.num, this.sub, this.tp, this.lvl, this.id
     if this.type ~= "header" then
-        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
-        tinsert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
+        table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
+        table.insert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
     end
-    tremove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
+    table.remove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
     -- increment parent index for skills that belong to headers below
     for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
         if v.parent and v.parent > parentIndex then
@@ -1797,16 +1805,16 @@ function ArtisanRightButtonUp_OnClick()
 
         if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
             ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                    tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                 end
             end
         else
             local prevParentIndex = ARTISAN_CUSTOM[tabName][craftIndex - 2].parent
             ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
             ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
                     if ARTISAN_CUSTOM[tabName][i].parent == prevIndex then
                         ARTISAN_CUSTOM[tabName][i].parent = craftIndex
@@ -1816,12 +1824,12 @@ function ArtisanRightButtonUp_OnClick()
 
             ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
             ARTISAN_CUSTOM[tabName][prevParentIndex].childs = {}
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
                     if ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        table.insert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                     elseif ARTISAN_CUSTOM[tabName][i].parent == prevParentIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        table.insert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                     end
                 end
             end
@@ -1833,17 +1841,17 @@ function ArtisanRightButtonUp_OnClick()
         else
             headerAbove = prevIndex
         end
-        local offset = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
+        local offset = craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
         local temp = {}
         for i = offset, craftIndex, -1 do
-            tinsert(temp, ARTISAN_CUSTOM[tabName][i])
-            tremove(ARTISAN_CUSTOM[tabName], i)
+            table.insert(temp, ARTISAN_CUSTOM[tabName][i])
+            table.remove(ARTISAN_CUSTOM[tabName], i)
         end
-        for i = 1, getn(temp) do
-            tinsert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
+        for i = 1, table.getn(temp) do
+            table.insert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
         end
         local newParent = 1
-        for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+        for i = 2, table.getn(ARTISAN_CUSTOM[tabName]) do
             if ARTISAN_CUSTOM[tabName][i].parent then
                 ARTISAN_CUSTOM[tabName][i].parent = newParent
             else
@@ -1868,7 +1876,7 @@ function ArtisanRightButtonDown_OnClick()
 	local nextIndex = craftIndex + 1
     local tabName = ArtisanFrame.selectedTabName
     local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
-    local numSkills = getn(ARTISAN_CUSTOM[tabName])
+    local numSkills = table.getn(ARTISAN_CUSTOM[tabName])
 	local currentHeaderName
 	if ArtisanEditor.currentHeader then
 		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
@@ -1884,15 +1892,15 @@ function ArtisanRightButtonDown_OnClick()
 
         if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
             ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                    tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                    table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                 end
             end
         else
             ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
             ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
                     if ARTISAN_CUSTOM[tabName][i].parent == nextIndex then
                         ARTISAN_CUSTOM[tabName][i].parent = craftIndex
@@ -1902,12 +1910,12 @@ function ArtisanRightButtonDown_OnClick()
 
             ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
             ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
-            for i = 1, getn(ARTISAN_CUSTOM[tabName]) do
+            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
                 if ARTISAN_CUSTOM[tabName][i].parent then
                     if ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                     elseif ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                        tinsert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
+                        table.insert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
                     end
                 end
             end
@@ -1915,7 +1923,7 @@ function ArtisanRightButtonDown_OnClick()
     else
         local headerBelow
         if ARTISAN_CUSTOM[tabName][nextIndex].type ~= "header" then
-            headerBelow = craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
+            headerBelow = craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
         else
             headerBelow = nextIndex
         end
@@ -1924,19 +1932,19 @@ function ArtisanRightButtonDown_OnClick()
             return
         end
 
-        local pos = headerBelow + getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
+        local pos = headerBelow + table.getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
         local x = 0
-        for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-            tinsert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
+        for i = craftIndex, craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+            table.insert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
             x = x + 1
         end
         x = 0
-        for i = craftIndex, craftIndex + getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-            tremove(ARTISAN_CUSTOM[tabName], i - x)
+        for i = craftIndex, craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
+            table.remove(ARTISAN_CUSTOM[tabName], i - x)
             x = x + 1
         end
         local newParent = 1
-        for i = 2, getn(ARTISAN_CUSTOM[tabName]) do
+        for i = 2, table.getn(ARTISAN_CUSTOM[tabName]) do
             if ARTISAN_CUSTOM[tabName][i].parent then
                 ARTISAN_CUSTOM[tabName][i].parent = newParent
             else
@@ -1966,11 +1974,11 @@ function ArtisanRightButtonDelete_OnClick()
     local name, type, num, sub, tp, lvl, id, parentIndex = button.name, button.type, button.num, button.sub, button.tp, button.lvl, button.id, button.parent
     if button.type ~= "header" then
         -- move this skill to the left table
-        tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
+        table.insert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
         -- remove this skill from parents header childs
         for k, v in pairs(ARTISAN_CUSTOM[tabName][parentIndex].childs) do
             if v == name then
-                tremove(ARTISAN_CUSTOM[tabName][parentIndex].childs, k)
+                table.remove(ARTISAN_CUSTOM[tabName][parentIndex].childs, k)
             end
         end
         -- decrement parent index for skills below if they belong to other headers
@@ -1981,21 +1989,21 @@ function ArtisanRightButtonDelete_OnClick()
         end
     else
         -- if we delete header
-        local offset = getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
+        local offset = table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
         -- copy childs to left list
         for _, v in pairs(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
             for _, v2 in pairs(ARTISAN_CUSTOM[tabName]) do
                 local tbl = {name = v2.name, type = v2.type, num = v2.num, sub = v2.sub, tp = v2.tp, lvl = v2.lvl, id = v2.id}
                 if v2.name == v and not listContains(ARTISAN_UNCATEGORIZED[tabName], nil, tbl) then
-                    tinsert(ARTISAN_UNCATEGORIZED[tabName], tbl)
+                    table.insert(ARTISAN_UNCATEGORIZED[tabName], tbl)
                     break
                 end
             end
         end
         -- remove childs from right list
-        for i = getn(ARTISAN_CUSTOM[tabName]), 1, -1  do
+        for i = table.getn(ARTISAN_CUSTOM[tabName]), 1, -1  do
             if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                tremove(ARTISAN_CUSTOM[tabName], i)
+                table.remove(ARTISAN_CUSTOM[tabName], i)
             end
         end
         -- decrement parent index for skills below by the number of childs + 1
@@ -2005,7 +2013,7 @@ function ArtisanRightButtonDelete_OnClick()
             end
         end
     end
-    tremove(ARTISAN_CUSTOM[tabName], craftIndex)
+    table.remove(ARTISAN_CUSTOM[tabName], craftIndex)
 	if currentHeaderName then
 		ArtisanEditor.currentHeader = nil
 		for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
@@ -2075,16 +2083,16 @@ local function sortByName(a, b)
 end
 
 function ArtisanEditor_OnShow()
-    local sorting = ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName]
-	local tabName = ArtisanFrame.selectedTabName
-    if not ARTISAN_SKILLS[tabName][sorting] then
+	local tab = ArtisanFrame.selectedTabName
+    local sorting = ARTISAN_CONFIG.sorting[tab]
+    if not ARTISAN_SKILLS[tab][sorting] then
         return
     end
 
-    ARTISAN_UNCATEGORIZED[tabName] = ARTISAN_UNCATEGORIZED[tabName] or {}
-    ARTISAN_CUSTOM[tabName] = ARTISAN_CUSTOM[tabName] or {}
+    ARTISAN_UNCATEGORIZED[tab] = ARTISAN_UNCATEGORIZED[tab] or {}
+    ARTISAN_CUSTOM[tab] = ARTISAN_CUSTOM[tab] or {}
 
-	wipe(ARTISAN_UNCATEGORIZED[tabName])
+	wipe(ARTISAN_UNCATEGORIZED[tab])
 
     for i = 1, C_GetNumCrafts() do
         local name, type, num, exp, sub, tp, lvl = C_GetCraftInfo(i)
@@ -2092,16 +2100,16 @@ function ArtisanEditor_OnShow()
             name = name.."  "..format(PARENS_TEMPLATE, sub)
         end
         if type ~= "header" then
-            tinsert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = i})
-            for k in pairs(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][k].name == name then
-                    tremove(ARTISAN_UNCATEGORIZED[tabName])
+            table.insert(ARTISAN_UNCATEGORIZED[tab], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = i})
+            for k in pairs(ARTISAN_CUSTOM[tab]) do
+                if ARTISAN_CUSTOM[tab][k].name == name then
+                    table.remove(ARTISAN_UNCATEGORIZED[tab])
                     break
                 end
             end
         end
     end
-    table.sort(ARTISAN_UNCATEGORIZED[tabName], sortByName)
+    table.sort(ARTISAN_UNCATEGORIZED[tab], sortByName)
 end
 
 function ArtisanEditor_Search()
@@ -2120,7 +2128,7 @@ function ArtisanEditor_Search()
         return
     end
 
-    local numSkills = getn(ARTISAN_UNCATEGORIZED[tab])
+    local numSkills = table.getn(ARTISAN_UNCATEGORIZED[tab])
 
     for i = 1, numSkills do
         local skillName = ARTISAN_UNCATEGORIZED[tab][i].name
@@ -2135,7 +2143,7 @@ function ArtisanEditor_Search()
                 end
             end
             if match then
-                tinsert(editorSearchResults, i)
+                table.insert(editorSearchResults, i)
             end
         end
     end
@@ -2145,9 +2153,9 @@ end
 function ArtisanEditorLeft_Update()
     local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameLeft) or 0
     local tabName = ArtisanFrame.selectedTabName
-    local numCrafts = getn(ARTISAN_UNCATEGORIZED[tabName])
+    local numCrafts = table.getn(ARTISAN_UNCATEGORIZED[tabName])
     local buttonIndex = 1
-    local results = getn(editorSearchResults)
+    local results = table.getn(editorSearchResults)
     local craftsToUpdate = results == 0 and numCrafts or results
     FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, craftsToUpdate, 25, craftSkillHeight)
     local indent = ""
@@ -2213,7 +2221,7 @@ end
 function ArtisanEditorRight_Update()
     local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameRight) or 0
     local tabName = ArtisanFrame.selectedTabName
-    local numCrafts = getn(ARTISAN_CUSTOM[tabName])
+    local numCrafts = table.getn(ARTISAN_CUSTOM[tabName])
     local buttonIndex = 1
     FauxScrollFrame_Update(ArtisanEditorScrollFrameRight, numCrafts, 25, craftSkillHeight)
     local indent = ""
@@ -2360,7 +2368,7 @@ function ArtisanEditor_AddCategory(categoryName)
     if categoryName == "" or not tabName then
         return
     end
-    tinsert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
+    table.insert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
     for k in pairs(ARTISAN_CUSTOM[tabName]) do
         if ARTISAN_CUSTOM[tabName][k].name == categoryName then
             ArtisanEditor.currentHeader = k

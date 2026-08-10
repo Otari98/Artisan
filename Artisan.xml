@@ -431,7 +431,6 @@
 						this:HighlightText()
 					</OnEditFocusGained>
 				</Scripts>
-				<FontString name="$parentSearchString" inherits="GameFontNormal"/>
 			</EditBox>
             <Frame name="ArtisanHighlightFrame" hidden="true">
 				<Size x="293" y="16"/>

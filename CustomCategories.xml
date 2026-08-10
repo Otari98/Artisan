@@ -241,7 +241,6 @@
 						ArtisanEditor_Search()
 					</OnEscapePressed>
 				</Scripts>
-				<FontString name="$parentSearchString" inherits="GameFontNormal"/>
 			</EditBox>
         </Frames>
         <Scripts>
