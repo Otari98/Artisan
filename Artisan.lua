@@ -1,46 +1,44 @@
-local _G = _G or getfenv(0)
-local maxCraftReagents = 8
-local craftSkillHeight = 16
-local craftsDisplayed = 12
-local updateDelay = 0.2
-local timer = nil
-local searchResults = {}
-local editorSearchResults = {}
-local playerProfessions = {}
-local collapsedHeaders = {}
-local DREAMSTONE_SPELL_LINK = "enchant:57518"
-local DREAMSTONE_ITEM_LINK = "item:61732"
-local createdItem = gsub(LOOT_ITEM_CREATED_SELF, "%%s", "(.+)")
-local dreamstoneKnown = false
+_G = _G or getfenv(0)
 
-BINDING_HEADER_ARTISAN_TITLE = "Artisan Bindings"
-BINDING_NAME_ARTISAN_CREATE = "Create"
-BINDING_NAME_ARTISAN_CREATE_ALL = "Create All"
+Artisan = {}
+Artisan.version = GetAddOnMetadata("Artisan", "Version")
+Artisan.currentTab = nil
+Artisan.selectedSkill = 0
+Artisan.Tabs = {}
+Artisan.Skills = {}
+Artisan.Uncategorized = {}
+Artisan.CustomCategories = {}
+Artisan.CollapsedHeaders = {}
 
-local tabsOrder = {
-    [1] = {
-        ["Alchemy"] = true,
-        ["Blacksmithing"] = true,
-        ["Leatherworking"] = true,
-        ["Tailoring"] = true,
-        ["Engineering"] = true,
-        ["Jewelcrafting"] = true,
-        ["Enchanting"] = true,
-        ["Smelting"] = true,
-    },
-    [2] = {
-        ["First Aid"] = true,
-        ["Cooking"] = true,
-        ["Survival"] = true,
-    },
-    [3] = {
-        ["Beast Training"] = true,
-        ["Poisons"] = true,
-        ["Disguise"] = true,
-    }
+ArtisanConfig = {}
+ArtisanCustom = {}
+
+BINDING_HEADER_ARTISAN_TITLE = "Artisan"
+BINDING_NAME_ARTISAN_CREATE = CREATE
+BINDING_NAME_ARTISAN_CREATE_ALL = CREATE_ALL
+
+local BLUE_FONT_COLOR_CODE = "|cff0070de"
+local MAX_TABS = 7
+local MAX_SKILLS = 12
+
+Artisan.TabsOrder = {
+    "Alchemy",
+    "Blacksmithing",
+    "Enchanting",
+    "Engineering",
+    "Leatherworking",
+    "Tailoring",
+    "Jewelcrafting",
+    "Smelting",
+    "First Aid",
+    "Cooking",
+    "Poisons",
+    "Beast Training",
+    "Survival",
+    "Disguise",
 }
 
-local patternsToHeaders = {
+Artisan.Patterns = {
     ["Enchanting"] = {
         ["bracer"] = "Bracer",
         ["boots"] = "Boots",
@@ -48,15 +46,14 @@ local patternsToHeaders = {
         ["2h weapon"] = "2H Weapon",
         ["enchant weapon"] = "Weapon",
         ["wand"] = "Wand",
-        ["mana oil$"] = "Consumable",
-        ["wizard oil$"] = "Consumable",
+        [" oil$"] = "Consumable",
         ["cloak"] = "Cloak",
         ["chest"] = "Chest",
         ["shield"] = "Shield",
     }
 }
 
-local TypeColor = {
+Artisan.TradeSkillTypeColor = {
     ["optimal"] = { r = 1.00, g = 0.50, b = 0.25 },
     ["medium"]  = { r = 1.00, g = 1.00, b = 0.00 },
     ["easy"]    = { r = 0.25, g = 0.75, b = 0.25 },
@@ -66,874 +63,468 @@ local TypeColor = {
     ["none"]    = { r = 0.25, g = 0.75, b = 0.25 },
 }
 
-table.insert(UISpecialFrames, "ArtisanFrame")
+Artisan.CraftsWithCooldown = {
+    ["enchant:57518"] = { "item:61732", 259200 },
+    -- ["enchant:7421"] = { "item:6218", 259200 },
+}
 
-local YELLOW = NORMAL_FONT_COLOR_CODE
-local WHITE = HIGHLIGHT_FONT_COLOR_CODE
-local GREEN = GREEN_FONT_COLOR_CODE
-local GREY = GRAY_FONT_COLOR_CODE
-local BLUE = "|cff0070de"
-
-print = print or function(...)
-    for i = 1, table.getn(arg) do arg[i] = tostring(arg[i]) end
-    DEFAULT_CHAT_FRAME:AddMessage(table.concat(arg, " "))
-end
-
-local function wipe(tbl)
-	if type(tbl) ~= "table" then return end
-    for i = table.getn(tbl), 1, -1 do
-        table.remove(tbl, i)
+local DoCraft_original = DoCraft
+DoCraft = function(id)
+    DoCraft_original(id)
+    local link = string.gsub(GetCraftItemLink(id) or "", "^.*(enchant:%d+).*$", "%1")
+    local duration = Artisan.CraftsWithCooldown[link] and Artisan.CraftsWithCooldown[link][2]
+    if duration then
+        ArtisanFrame:RegisterEvent("CHAT_MSG_LOOT")
     end
 end
 
-local function listContains(list, key, value)
-    if type(list) ~= "table" then
-        return false
-    end
-    if not key and value then
-        for k, v in pairs(list) do
-            if v == value then
-                return k
-            end
-        end
-    end
-    if key and not value then
-        return list[key] ~= nil
-    end
-    return list[key] == value
+Artisan.wipe = function(tbl)
+    if type(tbl) ~= "table" then return end
+    for i = table.getn(tbl), 1, -1 do table.remove(tbl, i) end
+    for k in pairs(tbl) do tbl[k] = nil end
 end
 
-local function strtrim(s)
-	return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
+Artisan.trim = function(s)
+    return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
 end
 
-local splitResult = {}
-local function strsplit(str, delimiter)
-    wipe(splitResult)
-    local from = 1
-    local delim_from, delim_to = string.find(str, delimiter, from, true)
-    while delim_from do
-        table.insert(splitResult, string.sub(str, from, delim_from - 1))
-        from = delim_to + 1
-        delim_from, delim_to = string.find(str, delimiter, from, true)
+Artisan.strsplit = function(str, t)
+    local result = t and Artisan.wipe(t) or {}
+    for w in string.gfind(str, "%S+") do
+        table.insert(result, w)
     end
-    table.insert(splitResult, string.sub(str, from))
-    return splitResult
+    return result
 end
 
-function ArtisanFrame_Search()
-    if not ArtisanFrame:IsShown() then
-        return
-    end
-	wipe(searchResults)
-	local query = strlower(ArtisanFrameSearchBox:GetText())
-    query = strtrim(query)
-    local reagentsFilter = ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName]
-    if query == "" and not reagentsFilter then
-        ArtisanFrame_Update()
-        return
-    end
+EnableAddOn("Blizzard_TradeSkillUI")
+EnableAddOn("Blizzard_CraftUI")
+LoadAddOn("Blizzard_TradeSkillUI")
+LoadAddOn("Blizzard_CraftUI")
+TradeSkillFrame:UnregisterAllEvents()
+CraftFrame:UnregisterAllEvents()
+UIParent:UnregisterEvent("TRADE_SKILL_SHOW")
+UIParent:UnregisterEvent("TRADE_SKILL_CLOSE")
+UIParent:UnregisterEvent("CRAFT_SHOW")
+UIParent:UnregisterEvent("CRAFT_CLOSE")
 
-    local numSkills = Artisan_GetNumCrafts()
-
-    for i = 1, numSkills do
-        local skillName, skillType, numAvailable, isExpanded = Artisan_GetCraftInfo(i)
-
-        if skillName then
-            if skillType == "header" then
-                if not isExpanded then
-                    Artisan_ExpandCraftSkillLine(i)
-                end
-            else
-                if reagentsFilter and numAvailable > 0 then
-                    if query ~= "" then
-                        local words = strsplit(query, " ")
-                        local match = true
-                        for _, w in ipairs(words) do
-                            if not strfind(strlower(skillName), strlower(w), 1, true) then
-                                match = false
-                                break
-                            end
-                        end
-                        if match then
-                            table.insert(searchResults, i)
-                        end
-                    else
-                        table.insert(searchResults, i)
-                    end
-                elseif not reagentsFilter then
-                    if query ~= "" then
-                        local words = strsplit(query, " ")
-                        local match = true
-                        for _, w in ipairs(words) do
-                            if not strfind(strlower(skillName), strlower(w), 1, true) then
-                                match = false
-                                break
-                            end
-                        end
-                        if match then
-                            table.insert(searchResults, i)
-                        end
-                    end
-                end
-            end
-        end
-    end
-	ArtisanFrame_Update()
-end
-
-function ArtisanFrame_OnLoad()
-    this:RegisterEvent("ADDON_LOADED")
-    this:RegisterEvent("BAG_UPDATE")
-    this:RegisterEvent("PLAYER_ENTERING_WORLD")
-    this:RegisterEvent("UNIT_PORTRAIT_UPDATE")
-    this:RegisterEvent("UPDATE_TRADESKILL_RECAST")
-    this:RegisterEvent("SPELLS_CHANGED")
-    this:RegisterEvent("UNIT_PET_TRAINING_POINTS")
-    this:RegisterEvent("TRADE_SKILL_SHOW")
-    this:RegisterEvent("TRADE_SKILL_CLOSE")
-    this:RegisterEvent("TRADE_SKILL_UPDATE")
-    this:RegisterEvent("CRAFT_SHOW")
-    this:RegisterEvent("CRAFT_CLOSE")
-    this:RegisterEvent("CRAFT_UPDATE")
-    this:RegisterEvent("REPLACE_ENCHANT")
-	this:RegisterEvent("TRADE_REPLACE_ENCHANT")
-    this:RegisterEvent("SKILL_LINES_CHANGED")
-    this:RegisterEvent("CHAT_MSG_LOOT")
-end
-
-function Artisan_Init()
-    if IsAddOnLoaded("Blizzard_TradeSkillUI") and IsAddOnLoaded("Blizzard_CraftUI") then
-        return
-    end
-
-    EnableAddOn("Blizzard_TradeSkillUI")
-    EnableAddOn("Blizzard_CraftUI")
-    LoadAddOn("Blizzard_TradeSkillUI")
-    LoadAddOn("Blizzard_CraftUI")
-    TradeSkillFrame:UnregisterAllEvents()
-    CraftFrame:UnregisterAllEvents()
-    UIParent:UnregisterEvent("TRADE_SKILL_SHOW")
-    UIParent:UnregisterEvent("TRADE_SKILL_CLOSE")
-    UIParent:UnregisterEvent("CRAFT_SHOW")
-    UIParent:UnregisterEvent("CRAFT_CLOSE")
-
-    if ArtisanFrame then
-        local tradeSkillOnMouseUp = TradeSkillReagent1:GetScript("OnMouseUp")
-        for i = 1, maxCraftReagents do
-            _G["ArtisanReagent"..i]:SetScript("OnMouseUp", tradeSkillOnMouseUp)
-        end
-    end
-
-    ArtisanFrame.selectedSkill = 0
-    ArtisanFrame.originalScroll = ArtisanDetailScrollFrame:GetScript("OnMouseWheel")
+function Artisan.OnLoad(self)
+    self:RegisterEvent("ADDON_LOADED")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("UNIT_PORTRAIT_UPDATE")
+    self:RegisterEvent("UPDATE_TRADESKILL_RECAST")
+    self:RegisterEvent("TRADE_SKILL_SHOW")
+    self:RegisterEvent("TRADE_SKILL_CLOSE")
+    self:RegisterEvent("TRADE_SKILL_UPDATE")
+    -- self:RegisterEvent("TRADE_SKILL_FILTER_UPDATE")
+    self:RegisterEvent("REPLACE_ENCHANT")
+    self:RegisterEvent("TRADE_REPLACE_ENCHANT")
+    self:RegisterEvent("SKILL_LINES_CHANGED")
+    self:RegisterEvent("CRAFT_SHOW")
+    self:RegisterEvent("CRAFT_CLOSE")
+    self:RegisterEvent("CRAFT_UPDATE")
+    self:RegisterEvent("UNIT_PET_TRAINING_POINTS")
+    table.insert(UISpecialFrames, "ArtisanFrame")
+    ArtisanRankFrame:SetStatusBarColor(0.0, 0.0, 1.0, 0.5)
+    ArtisanRankFrameBackground:SetVertexColor(0.0, 0.0, 0.75, 0.5)
     FauxScrollFrame_SetOffset(TradeSkillListScrollFrame, 0)
+end
 
-    local function status(parameter)
-        local str = ""
-        if parameter then
-            str = "("..GREEN.."ON|r)"
-        else
-            str = "("..GREY.."OFF|r)"
+function Artisan.OnEvent(self, event, arg1)
+    if event == "ADDON_LOADED" then
+        if arg1 ~= "Artisan" then return end
+        self:UnregisterEvent("ADDON_LOADED")
+        if not ArtisanConfig then ArtisanConfig = {} end
+        if ArtisanConfig.auto == nil then ArtisanConfig.auto = true end
+        if ArtisanConfig.icons == nil then ArtisanConfig.icons = true end
+        if ArtisanConfig.movable == nil then ArtisanConfig.movable = false end
+        if type(Artisan.Skills) ~= "table" then Artisan.Skills = {} end
+        if type(ArtisanCustom) ~= "table" then ArtisanCustom = {} end
+        if type(ArtisanConfig.sorting) ~= "table" then ArtisanConfig.sorting = {} end
+        if type(ArtisanConfig.reagents) ~= "table" then ArtisanConfig.reagents = {} end
+        if not ArtisanConfig.auto then
+            self:UnregisterEvent("REPLACE_ENCHANT")
+            self:UnregisterEvent("TRADE_REPLACE_ENCHANT")
         end
-        return str
-    end
-
-    SLASH_ARTISAN1 = "/artisan"
-
-    SlashCmdList["ARTISAN"] = function(msg)
-        local cmd = strtrim(msg)
-        cmd = strlower(cmd)
-        if cmd == "auto" then
-            if ARTISAN_CONFIG.auto then
-                ARTISAN_CONFIG.auto = false
-                ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
-                ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
-            else
-                ARTISAN_CONFIG.auto = true
-                ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
-                ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
-            end
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." auto confirmation is now |r"..status(ARTISAN_CONFIG.auto))
-        elseif cmd == "icons" then
-            if ARTISAN_CONFIG.icons then
-                ARTISAN_CONFIG.icons = false
-            else
-                ARTISAN_CONFIG.icons = true
-            end
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." skill icons is now |r"..status(ARTISAN_CONFIG.icons))
-        elseif cmd == "movable" then
-            HideUIPanel(ArtisanFrame)
-            if ARTISAN_CONFIG.movable then
-                ARTISAN_CONFIG.movable = false
-                UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
-                ArtisanFrame:ClearAllPoints()
-                ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
-            else
-                ARTISAN_CONFIG.movable = true
-                UIPanelWindows["ArtisanFrame"] = nil
-                local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
-                ARTISAN_CONFIG.X = offsetX
-                ARTISAN_CONFIG.Y = offsetY
-            end
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." movable window is now |r"..status(ARTISAN_CONFIG.movable))
-        else
-            DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Artisan]|r"..WHITE.." version "..GetAddOnMetadata("Artisan", "version").."|r")
-            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan auto|r"..WHITE.." - auto confirmation of enchant replacements "..status(ARTISAN_CONFIG.auto).."|r")
-            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan icons|r"..WHITE.." - icons next to skill names "..status(ARTISAN_CONFIG.icons).."|r")
-            DEFAULT_CHAT_FRAME:AddMessage(YELLOW.."/artisan movable|r"..WHITE.." - movable window "..status(ARTISAN_CONFIG.movable).."|r")
-        end
-    end
-end
-
-function ArtisanFrame_OnUpdate(deltaTime)
-    if not timer then
-        return
-    end
-    timer = timer - deltaTime
-    if timer <= 0 then
-        timer = nil
-        Artisan_SetupSideTabs()
-        Artisan_Reselect()
-        ArtisanFrame_Search()
-    end
-end
-
-function ArtisanFrame_OnMouseDown()
-    ArtisanFrameSearchBox:ClearFocus()
-    if not ARTISAN_CONFIG.movable then
-        return
-    end
-    ArtisanFrame:StartMoving()
-end
-
-function ArtisanFrame_OnMouseUp()
-    if not ARTISAN_CONFIG.movable then
-        return
-    end
-    ArtisanFrame:StopMovingOrSizing()
-    local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
-    ARTISAN_CONFIG.X = offsetX
-    ARTISAN_CONFIG.Y = offsetY
-end
-
-function ArtisanFrame_OnEvent()
-    if event == "ADDON_LOADED" and arg1 == "Artisan" then
-        this:UnregisterEvent("ADDON_LOADED")
-        ArtisanRankFrame:SetStatusBarColor(0.0, 0.0, 1.0, 0.5)
-        ArtisanRankFrameBackground:SetVertexColor(0.0, 0.0, 0.75, 0.5)
-        ARTISAN_SKILLS = type(ARTISAN_SKILLS) ~= "table" and {} or ARTISAN_SKILLS
-        ARTISAN_CUSTOM = type(ARTISAN_CUSTOM) ~= "table" and {} or ARTISAN_CUSTOM
-        ARTISAN_UNCATEGORIZED = type(ARTISAN_UNCATEGORIZED) ~= "table" and {} or ARTISAN_UNCATEGORIZED
-        ARTISAN_CONFIG = type(ARTISAN_CONFIG) ~= "table" and {} or ARTISAN_CONFIG
-        ARTISAN_CONFIG.sorting = type(ARTISAN_CONFIG.sorting) ~= "table" and {} or ARTISAN_CONFIG.sorting
-        ARTISAN_CONFIG.auto = ARTISAN_CONFIG.auto == nil and true or ARTISAN_CONFIG.auto
-        ARTISAN_CONFIG.icons = ARTISAN_CONFIG.icons == nil and true or ARTISAN_CONFIG.icons
-        ARTISAN_CONFIG.reagents = type(ARTISAN_CONFIG.reagents) ~= "table" and {} or ARTISAN_CONFIG.reagents
-        ARTISAN_CONFIG.movable = ARTISAN_CONFIG.movable == nil and false or ARTISAN_CONFIG.movable
-        if not ARTISAN_CONFIG.auto then
-            ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
-            ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
-        end
-        if not ARTISAN_CONFIG.movable then
+        if not ArtisanConfig.movable then
             UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
         else
-            ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", ARTISAN_CONFIG.X or 0, ARTISAN_CONFIG.Y or -104)
+            self:SetPoint("TOPLEFT", UIParent, "TOPLEFT", ArtisanConfig.X or 0, ArtisanConfig.Y or -104)
         end
-    elseif event == "SPELLS_CHANGED" then
-        Artisan_SetupSideTabs()
+        self:SetMovable(ArtisanConfig.movable)
     elseif event == "SKILL_LINES_CHANGED" then
-        Artisan_SetupSideTabs()
-        ArtisanFrame_Search()
+        Artisan.UpdateTabs()
+        if self:IsShown() then
+            Artisan.UpdateFrame()
+        end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        SetPortraitTexture(ArtisanFramePortrait, "player")
         HideUIPanel(ArtisanFrame)
-        SetPortraitTexture(ArtisanFramePortrait, "player")
-        Artisan_Init()
-    elseif event == "UNIT_PORTRAIT_UPDATE" and arg1 == "player" then
-        SetPortraitTexture(ArtisanFramePortrait, "player")
+    elseif event == "UNIT_PORTRAIT_UPDATE" then
+        if not self:IsShown() then return end
+        if arg1 == "player" then
+            SetPortraitTexture(ArtisanFramePortrait, "player")
+        end
     elseif event == "UNIT_PET_TRAINING_POINTS" then
-		Artisan_UpdateTrainingPoints()
-    elseif event == "TRADE_SKILL_UPDATE" or event == "CRAFT_UPDATE" then
-        local canUpdateNow
-        for k, v in pairs(playerProfessions) do
-            if v.name == ArtisanFrame.selectedTabName then
-                canUpdateNow = not v.initial
-                break
-            end
+        if not self:IsShown() then return end
+        if arg1 == "pet" then
+            Artisan.UpdateTrainingPoints()
         end
-        timer = canUpdateNow and 0 or updateDelay
-    elseif event == "TRADE_SKILL_SHOW" then
-        CloseCraft()
-        ArtisanFrame_Show()
-    elseif event == "CRAFT_SHOW" then
-        CloseTradeSkill()
-        ArtisanFrame_Show()
+    elseif event == "TRADE_SKILL_UPDATE" or event == "CRAFT_UPDATE" or event == "TRADE_SKILL_FILTER_UPDATE" then
+        if not self:IsShown() then return end
+        self.timer = event == "TRADE_SKILL_FILTER_UPDATE" and 0 or 0.2
+    elseif event == "TRADE_SKILL_SHOW" or event == "CRAFT_SHOW" then
+        ShowUIPanel(self)
+        if not self:IsShown() then return end
+        Artisan.currentTab = Artisan.GetTradeSkillLine()
+        if event == "TRADE_SKILL_SHOW" then
+            CloseCraft()
+        elseif event == "CRAFT_SHOW" then
+            CloseTradeSkill()
+        end
+        Artisan.UpdateSkills()
+        if ArtisanConfig.sorting[Artisan.currentTab] ~= "CUSTOM" and ArtisanEditor:IsShown() then
+            ArtisanEditor:Hide()
+        end
+        ArtisanFrameCreateButton:Disable()
+        ArtisanFrameCreateAllButton:Disable()
+        local selectionIndex = Artisan.GetTradeSkillSelectionIndex()
+        if selectionIndex == 0 then
+            Artisan.SetSelection(Artisan.GetFirstTradeSkill())
+        else
+            Artisan.SetSelection(selectionIndex)
+        end
+        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+        ArtisanListScrollFrameScrollBar:SetMinMaxValues(0, 0)
+        ArtisanListScrollFrameScrollBar:SetValue(0)
+        SetPortraitTexture(ArtisanFramePortrait, "player")
+        Artisan.UpdateFrame()
     elseif event == "TRADE_SKILL_CLOSE" or event == "CRAFT_CLOSE" then
-        if GetCraftName() ~= "Beast Training" and GetCraftName() ~= "Disguise" and GetCraftDisplaySkillLine() ~= "Enchanting" and GetTradeSkillLine() == "UNKNOWN" then
-            ArtisanFrame.selectedTabName = nil
-        end
-        if not ArtisanFrame.selectedTabName then
-            if ArtisanFrame:IsShown() then
-                HideUIPanel(ArtisanFrame)
-            end
+        if not self:IsShown() then return end
+        Artisan.currentTab = Artisan.GetTradeSkillLine()
+        if not Artisan.IsCraft() and not Artisan.IsTradeSkill() then
+            Artisan.currentTab = nil
+            HideUIPanel(self)
         end
     elseif event == "UPDATE_TRADESKILL_RECAST" then
-		ArtisanFrameInputBox:SetNumber(GetTradeskillRepeatCount())
-    elseif event == "BAG_UPDATE" then
-        if ArtisanFrame:IsShown() then
-            Artisan_Reselect()
-		    ArtisanFrame_Search()
-        end
+        if not self:IsShown() then return end
+        ArtisanFrameInputBox:SetNumber(GetTradeskillRepeatCount())
     elseif event == "REPLACE_ENCHANT" then
         ReplaceEnchant()
         StaticPopup_Hide("REPLACE_ENCHANT")
     elseif event == "TRADE_REPLACE_ENCHANT" then
         ReplaceTradeEnchant()
         StaticPopup_Hide("TRADE_REPLACE_ENCHANT")
-    elseif event == "CHAT_MSG_LOOT" and dreamstoneKnown then
-        local _, _, item = strfind(arg1, createdItem)
-        if item and strfind(item, DREAMSTONE_ITEM_LINK) then
-            ARTISAN_DREAMSTONE_TIME = time()
+    elseif event == "CHAT_MSG_LOOT" then
+        local _, _, itemLink = string.find(arg1 or "", (string.gsub(LOOT_ITEM_CREATED_SELF, "%%s", "(.+)")))
+        local itemID = string.gsub(itemLink or "", "^.*(item:%d+).*$", "%1")
+        if not itemID then return end
+        for enchant, info in pairs(Artisan.CraftsWithCooldown) do
+            if info[1] == itemID then
+                if not ArtisanCustom.cd then ArtisanCustom.cd = {} end
+                ArtisanCustom.cd[enchant] = time()
+                self:UnregisterEvent("CHAT_MSG_LOOT")
+                break
+            end
         end
     end
 end
 
-function ArtisanFrame_OnShow()
-    Artisan_SetupSideTabs()
-    if not ArtisanFrame.selectedTabName then
-        HideUIPanel(ArtisanFrame)
-        return
+function Artisan.OnUpdate(self, elapsed)
+    if not self.timer then return end
+    self.timer = self.timer - elapsed
+    if self.timer <= 0 then
+        self.timer = nil
+        Artisan.currentTab = Artisan.GetTradeSkillLine()
+        if not Artisan.currentTab then return end
+        if not ArtisanConfig.sorting[Artisan.currentTab] then ArtisanConfig.sorting[Artisan.currentTab] = "DEFAULT" end
+        Artisan.UpdateSkills()
+        if ArtisanConfig.sorting[Artisan.currentTab] ~= "CUSTOM" and ArtisanEditor:IsShown() then
+            ArtisanEditor:Hide()
+        end
+        ArtisanFrameCreateButton:Disable()
+        ArtisanFrameCreateAllButton:Disable()
+        local selectionIndex = Artisan.GetTradeSkillSelectionIndex()
+        local firstSkill = Artisan.GetFirstTradeSkill()
+        if selectionIndex >= firstSkill and selectionIndex <= Artisan.GetNumTradeSkills() then
+            Artisan.SetSelection(selectionIndex)
+        else
+            Artisan.SetSelection(firstSkill)
+            FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
+            ArtisanListScrollFrameScrollBar:SetValue(0)
+        end
+        Artisan.UpdateFrame()
+        if ArtisanEditor:IsShown() then
+            Artisan.UpdateEditor()
+        end
     end
-    ArtisanFrameInputBox:SetNumber(1)
-    PlaySound("igCharacterInfoOpen")
 end
 
-function ArtisanFrame_Show()
-    if not ArtisanFrame:IsShown() then
-        ShowUIPanel(ArtisanFrame)
+function Artisan.UpdateTabs()
+    local name, texture, offset, numSpells = GetSpellTabInfo(1)
+    local numTabs = 0
+
+    for i = 1, table.getn(Artisan.TabsOrder) do
+        for spell = 1, numSpells do
+            local spellName = GetSpellName(spell, BOOKTYPE_SPELL)
+            if spellName == Artisan.TabsOrder[i] then
+                numTabs = numTabs + 1
+                if not Artisan.Tabs[numTabs] then Artisan.Tabs[numTabs] = {} end
+                Artisan.Tabs[numTabs].name = spellName
+                Artisan.Tabs[numTabs].texure = GetSpellTexture(spell, BOOKTYPE_SPELL)
+                Artisan.Tabs[numTabs].spell = spell
+                break
+            end
+        end
     end
 
-    if not ArtisanFrame.selectedTabName then
-        HideUIPanel(ArtisanFrame)
-        return
+    -- in case we abandoned skills
+    for i = table.getn(Artisan.Tabs), numTabs + 1, -1 do table.remove(Artisan.Tabs, i) end
+
+    for i = 1, MAX_TABS do
+        local tabButton = _G["ArtisanFrameTab"..i]
+        if i <= numTabs then
+            tabButton.name = Artisan.Tabs[i].name
+            tabButton:SetNormalTexture(Artisan.Tabs[i].texure)
+            tabButton:Show()
+            Artisan.Tabs[i].frame = tabButton
+        else
+            tabButton:Hide()
+        end
     end
 
-    if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "default" then
-        ArtisanSortDefault:SetChecked(1)
-        ArtisanSortCustom:SetChecked(nil)
-        ArtisanFrameEditButton:Hide()
-    elseif ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "custom" then
-        ArtisanSortCustom:SetChecked(1)
-        ArtisanSortDefault:SetChecked(nil)
-        ArtisanFrameEditButton:Show()
+    if not ArtisanConfig.sorting then ArtisanConfig.sorting = {} end
+
+    for _, v in pairs(Artisan.Tabs) do
+        ArtisanConfig.sorting[v.name] = ArtisanConfig.sorting[v.name] or "DEFAULT"
+        ArtisanConfig.reagents[v.name] = ArtisanConfig.reagents[v.name] or false
     end
-    if ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName] then
-        ArtisanHaveReagents:Show()
-        ArtisanHaveReagents:SetChecked(1)
+end
+
+function Artisan.UpdateFrame()
+    local tab = Artisan.currentTab
+    local numTradeSkills = Artisan.GetNumTradeSkills()
+    local selectionIndex = Artisan.GetTradeSkillSelectionIndex()
+
+    if numTradeSkills == 0 then
+        ArtisanSkillName:Hide()
+        ArtisanSkillIcon:Hide()
+        ArtisanRequirementLabel:Hide()
+        ArtisanRequirementText:Hide()
+        ArtisanSkillDescription:SetText("")
+        ArtisanSkillCost:SetText("")
+        ArtisanCollapseAllButton:Disable()
+        for i = 1, MAX_TRADE_SKILL_REAGENTS do
+            _G["ArtisanReagent"..i]:Hide()
+        end
     else
-        ArtisanHaveReagents:SetChecked(nil)
-    end
-    ArtisanFrame_Search()
-end
-
-function Artisan_Reselect()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then
-        return
+        ArtisanSkillName:Show()
+        ArtisanSkillIcon:Show()
+        ArtisanRequirementText:Show()
+        ArtisanCollapseAllButton:Enable()
     end
 
-    if sorting == "custom" or ArtisanFrame.craft then
-        Artisan_UpdateSkillList()
-    end
-    local selection = Artisan_GetCraftSelectionIndex()
-    local numCrafts = Artisan_GetNumCrafts()
-    if selection > 1 and selection <= numCrafts then
-        Artisan_SetSelection(selection)
+    local skillLineName, skillLineRank, skillLineMaxRank = Artisan.GetTradeSkillLine()
+    if skillLineMaxRank > 0 then
+        ArtisanRankFrameSkillName:SetText(format(TRADE_SKILL_TITLE, skillLineName))
+        ArtisanRankFrame:SetMinMaxValues(0, skillLineMaxRank)
+        ArtisanRankFrame:SetValue(skillLineRank)
+        ArtisanRankFrameSkillRank:SetText(skillLineRank.."/"..skillLineMaxRank)
+        ArtisanRankFrame:Show()
+        ArtisanFrameTitleText:Hide()
     else
-        Artisan_SetSelection(Artisan_GetFirstCraft())
-        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-        ArtisanListScrollFrame:SetVerticalScroll(0)
-        ArtisanListScrollFrameScrollBar:SetValue(0)
-    end
-end
-
-function Artisan_SetupSideTabs()
-    local _, _, _, numSpells = GetSpellTabInfo(1)
-    local tabIndex = 1
-    for spell = 1, numSpells do
-        local spellName = GetSpellName(spell, "SPELL")
-        if tabsOrder[1][spellName] or tabsOrder[2][spellName] or tabsOrder[3][spellName] then
-            playerProfessions[tabIndex] = playerProfessions[tabIndex] or {}
-            playerProfessions[tabIndex].name = spellName
-            playerProfessions[tabIndex].tex = GetSpellTexture(spell, "SPELL")
-            playerProfessions[tabIndex].active = IsCurrentCast(spell, "SPELL")
-            tabIndex = tabIndex + 1
-        end
-    end
-    tabIndex = 1
-    local tabButton
-
-    for p = 1, table.getn(tabsOrder) do
-        for index = 1, table.getn(playerProfessions) do
-            local spellName = playerProfessions[index].name
-            local active = playerProfessions[index].active
-            if tabsOrder[p][spellName] then
-                tabButton = _G["ArtisanFrameSideTab"..tabIndex]
-                tabButton.name = spellName
-                tabButton:SetNormalTexture(playerProfessions[index].tex)
-                tabButton:Show()
-                tabButton:SetChecked(active)
-                if active then
-                    ArtisanFrame.selectedTabName = spellName
-                    ArtisanFrame.craft = spellName == "Beast Training" or spellName == "Enchanting" or spellName == "Disguise"
-                end
-                tabIndex = tabIndex + 1
-            end
-        end
+        ArtisanFrameTitleText:SetText(skillLineName)
+        ArtisanFrameTitleText:Show()
+        ArtisanRankFrame:Hide()
     end
 
-    ARTISAN_CONFIG.sorting = ARTISAN_CONFIG.sorting or {}
-    for _, v in pairs(playerProfessions) do
-        ARTISAN_CONFIG.sorting[v.name] = ARTISAN_CONFIG.sorting[v.name] or "default"
-        ARTISAN_CONFIG.reagents[v.name] = ARTISAN_CONFIG.reagents[v.name] or false
-    end
-end
-
-local function C_GetNumCrafts()
-    if not ArtisanFrame.craft then
-        for i = GetNumTradeSkills(), 1, -1 do
-            local _, type, _, isExpanded = GetTradeSkillInfo(i)
-            if type == "header" and not isExpanded then
-                ExpandTradeSkillSubClass(i)
-            end
-        end
-        return GetNumTradeSkills()
-    else
-        return GetNumCrafts()
-    end
-end
-
-local function C_GetCraftInfo(originalIndex)
-    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
-    if not ArtisanFrame.craft then
-        craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = GetTradeSkillInfo(originalIndex)
-    else
-        craftName, craftSubSpellName, craftType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(originalIndex)
-    end
-    return craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
-end
-
-function Artisan_UpdateSkillList()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then return end
-
-    if not ARTISAN_SKILLS[tab] then ARTISAN_SKILLS[tab] = {} end
-    if not ARTISAN_SKILLS[tab][sorting] then ARTISAN_SKILLS[tab][sorting] = {} end
-
-    if not collapsedHeaders then collapsedHeaders = {} end
-    if not collapsedHeaders[tab] then collapsedHeaders[tab] = {} end
-    if not collapsedHeaders[tab][sorting] then collapsedHeaders[tab][sorting] = {} end
-
-    local selectionName, selectionType = Artisan_GetCraftInfo(ArtisanFrame.selectedSkill)
-
-    wipe(ARTISAN_SKILLS[tab][sorting])
-
-    if sorting == "default" then
-        if tab == "Enchanting" then
-            dreamstoneKnown = false
-            ARTISAN_SKILLS[tab][sorting][0] = ARTISAN_SKILLS[tab][sorting][0] or { name = "All", type = "header", exp = 1, childs = {} }
-            wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
-            ARTISAN_SKILLS[tab][sorting][0].exp = 1
-            local headerIndex = 0
-            for i = GetNumCrafts(), 1, -1 do
-                local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
-                if type ~= "header" then
-                    if name == "Eternal Dreamstone Shard" then
-                        dreamstoneKnown = true
-                    end
-                    -- default to Miscellaneous
-                    local header = "Miscellaneous"
-                    for pattern, hdr in pairs(patternsToHeaders[tab]) do
-                        if strfind(strlower(name), strlower(pattern)) then
-                            header = hdr
-                            break
-                        end
-                    end
-                    local found = false
-                    for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
-                        if v.name == header then
-                            -- header exists already
-                            headerIndex = k
-                            found = true
-                        end
-                    end
-                    if not found then
-                        -- add new header
-                        table.insert(ARTISAN_SKILLS[tab][sorting][0].childs, header)
-                        table.insert(ARTISAN_SKILLS[tab][sorting], { name = header, type = "header", childs = {} })
-                        headerIndex = table.getn(ARTISAN_SKILLS[tab][sorting])
-                        if not collapsedHeaders[tab][sorting][header] then
-                            ARTISAN_SKILLS[tab][sorting][headerIndex].exp = 1
-                        end
-                    end
-                    -- add this skill
-                    table.insert(ARTISAN_SKILLS[tab][sorting][headerIndex].childs, name)
-                    if ARTISAN_SKILLS[tab][sorting][headerIndex].exp == 1 then
-                        table.insert(ARTISAN_SKILLS[tab][sorting], headerIndex + 1, {
-                            name = name,
-                            type = type,
-                            num = num,
-                            exp = exp,
-                            sub = sub,
-                            tp = tp,
-                            lvl = lvl,
-                            id = i,
-                        })
-                    end
-                end
-            end
-        elseif tab == "Beast Training" or tab == "Disguise" then
-            -- no headers for these professions atm
-            for i = GetNumCrafts(), 1, -1 do
-                local name, sub, type, num, exp, tp, lvl = GetCraftInfo(i)
-                if name then
-                    table.insert(ARTISAN_SKILLS[tab][sorting], {
-                        name = name,
-                        sub = sub,
-                        type = type,
-                        num = num,
-                        exp = exp,
-                        tp = tp,
-                        lvl = lvl,
-                        id = i,
-                    })
-                end
-            end
-        end
-    elseif sorting == "custom" then
-        ARTISAN_SKILLS[tab][sorting][0] = ARTISAN_SKILLS[tab][sorting][0] or { name = "All", type = "header", exp = 1, childs = {} }
-        ARTISAN_SKILLS[tab][sorting][0].exp = 1
-        wipe(ARTISAN_SKILLS[tab][sorting][0].childs)
-        ARTISAN_CUSTOM[tab] = ARTISAN_CUSTOM[tab] or {}
-        -- copy custom categories into main table
-        for i = 1, table.getn(ARTISAN_CUSTOM[tab]) do
-            table.insert(ARTISAN_SKILLS[tab][sorting], ARTISAN_CUSTOM[tab][i])
-        end
-        -- make "Uncategorized" category if possible
-        if not ARTISAN_UNCATEGORIZED[tab] then
-            ArtisanEditor_OnShow()
-        end
-        if next(ARTISAN_UNCATEGORIZED[tab]) then
-            local isExpanded = not collapsedHeaders[tab][sorting]["Uncategorized"] and 1 or nil
-            table.insert(ARTISAN_SKILLS[tab][sorting], { name = "Uncategorized", type = "header", exp = isExpanded, childs = {} })
-            local uncatHeaderIndex = table.getn(ARTISAN_SKILLS[tab][sorting])
-            for i = 1, table.getn(ARTISAN_UNCATEGORIZED[tab]) do
-                if isExpanded then
-                    table.insert(ARTISAN_SKILLS[tab][sorting], ARTISAN_UNCATEGORIZED[tab][i])
-                end
-                table.insert(ARTISAN_SKILLS[tab][sorting][uncatHeaderIndex].childs, ARTISAN_UNCATEGORIZED[tab][i].name)
-            end
-        end
-        -- set headers expanded state
-        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
-                table.insert(ARTISAN_SKILLS[tab][sorting][0].childs, ARTISAN_SKILLS[tab][sorting][i].name)
-                ARTISAN_SKILLS[tab][sorting][i].exp = not collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] and 1 or nil
-            end
-        end
-        -- remove skills that belong to collapsed headers
-        for _, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
-            if v.type == "header" and not v.exp then
-                for _, v2 in pairs(v.childs) do
-                    for k3, v3 in pairs(ARTISAN_SKILLS[tab][sorting]) do
-                        if v3.name == v2 then
-                            table.remove(ARTISAN_SKILLS[tab][sorting], k3)
-                        end
-                    end
-                end
-            end
-        end
-        -- update attributes
-        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting].type ~= "header" then
-                for id = 1, C_GetNumCrafts() do
-                    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = C_GetCraftInfo(id)
-                    if craftType ~= "header" then
-                        if craftSubSpellName and craftSubSpellName ~= "" then
-                            craftName = craftName.."  "..format(PARENS_TEMPLATE, craftSubSpellName)
-                        end
-                        if craftName == ARTISAN_SKILLS[tab][sorting][i].name then
-                            ARTISAN_SKILLS[tab][sorting][i].id = id
-                            ARTISAN_SKILLS[tab][sorting][i].name = craftName
-                            ARTISAN_SKILLS[tab][sorting][i].type = craftType
-                            ARTISAN_SKILLS[tab][sorting][i].num = numAvailable
-                            ARTISAN_SKILLS[tab][sorting][i].sub = craftSubSpellName
-                            ARTISAN_SKILLS[tab][sorting][i].tp = trainingPointCost
-                            ARTISAN_SKILLS[tab][sorting][i].lvl = requiredLevel
-                            break
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if selectionName then
-        for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
-            if v.name == selectionName then
-                Artisan_SelectCraft(k)
-                return
-            end
-        end
-    end
-
-    Artisan_SelectCraft(0)
-end
-
-function ArtisanFrame_Update()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then
-        return
-    end
-
-	local craftOffset = FauxScrollFrame_GetOffset(ArtisanListScrollFrame)
-    local numCrafts = Artisan_GetNumCrafts()
-    local selection = Artisan_GetCraftSelectionIndex()
-    local name, rank, maxRank = Artisan_GetCraftSkillLine()
-    local numHeaders = 0
-    if sorting == "custom" or ArtisanFrame.craft then
-        for k, v in pairs(ARTISAN_SKILLS[tab][sorting]) do
-            if v.type == "header" then
-                numHeaders = numHeaders + 1
-            end
-        end
-    end
-
-    if ArtisanFrame.craft then
-        ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
+    if Artisan.IsCraft() then
+        ArtisanFrameBottomLeftTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
         ArtisanFrameCreateButton:SetText(_G[GetCraftButtonToken()])
         ArtisanFrameCreateAllButton:Hide()
         ArtisanFrameDecrementButton:Hide()
         ArtisanFrameInputBox:Hide()
         ArtisanFrameIncrementButton:Hide()
     else
-        ArtisanFrameBottomLeftTex:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft")
+        ArtisanFrameBottomLeftTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft")
         ArtisanFrameCreateButton:SetText(CREATE)
         ArtisanFrameCreateAllButton:Show()
         ArtisanFrameDecrementButton:Show()
         ArtisanFrameInputBox:Show()
         ArtisanFrameIncrementButton:Show()
     end
-    -- Setup status bar
-    ArtisanRankFrameSkillName:SetText(tab)
-    if name then
-        ArtisanRankFrame:Show()
-        ArtisanRankFrame:SetMinMaxValues(0, maxRank)
-		ArtisanRankFrame:SetValue(rank)
-		ArtisanRankFrameSkillRank:SetText(rank.."/"..maxRank)
-        ArtisanFrameTitleText:Hide()
-    else -- Beast Training / Disguise
-        ArtisanFrameTitleText:SetText(GetCraftName())
-        ArtisanFrameTitleText:Show()
-        ArtisanRankFrame:Hide()
-    end
 
-	if numCrafts - numHeaders < 0 then
-		ArtisanSkillName:Hide()
-        ArtisanSkillIcon:Hide()
-		ArtisanRequirementLabel:Hide()
-		ArtisanRequirementText:SetText("")
-        ArtisanCraftDescription:SetText("")
-        ArtisanCraftCost:SetText("")
-		for i = 1, maxCraftReagents do
-			_G["ArtisanReagent"..i]:Hide()
-		end
-	else
-		ArtisanSkillName:Show()
-		ArtisanSkillIcon:Show()
-        if ArtisanFrameSearchBox:GetText() ~= "" or ARTISAN_CONFIG.reagents[tab] then
-		    ArtisanCollapseAllButton:Disable()
-        elseif ArtisanFrameSearchBox:GetText() == "" and not ARTISAN_CONFIG.reagents[tab] then
-            ArtisanCollapseAllButton:Enable()
-        end
-        if tab == "Beast Training" and ARTISAN_CONFIG.sorting[tab] == "default" then
-            ArtisanCollapseAllButton:Disable()
-            ARTISAN_CONFIG.reagents[tab] = false
-            ArtisanHaveReagents:Hide()
-        elseif tab ~= "Beast Training" then
-            ArtisanHaveReagents:Show()
-        end
-	end
-
-    -- If player has training points show them here
-    Artisan_UpdateTrainingPoints()
     ArtisanHighlightFrame:Hide()
 
-    local results = table.getn(searchResults)
-    local craftsToUpdate = 0
-
-    if ArtisanFrameSearchBox:GetText() ~= "" or ARTISAN_CONFIG.reagents[tab] then
-        craftsToUpdate = results
-    else
-        craftsToUpdate = numCrafts
-    end
-
-    FauxScrollFrame_Update(ArtisanListScrollFrame, craftsToUpdate, craftsDisplayed, craftSkillHeight, nil, nil, nil, ArtisanHighlightFrame, 293, 316 )
-
-    for i=1, craftsDisplayed, 1 do
-        local craftIndex = 0
-        if ArtisanFrameSearchBox:GetText() ~= "" or ARTISAN_CONFIG.reagents[tab] then
-            if results > 0 then
-                if searchResults[i + craftOffset] then
-                    craftIndex = searchResults[i + craftOffset]
-                end
-            else
-                craftIndex = -1
-            end
-        else
-            craftIndex = i + craftOffset
-        end
-
-        local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost = Artisan_GetCraftInfo(craftIndex)
-        local craftButton = _G["ArtisanFrameSkill"..i]
-        local craftButtonSubText = _G["ArtisanFrameSkill"..i.."SubText"]
-        local craftButtonCost = _G["ArtisanFrameSkill"..i.."Cost"]
-        local craftButtonIcon = _G["ArtisanFrameSkill"..i.."Icon"]
-        local indent = " "
-        if ARTISAN_CONFIG.icons then
-            indent = "   "
-        end
-        craftButtonCost:SetText("")
-
-        if craftIndex > 0 and craftIndex <= numCrafts then
-            -- Set button widths if scrollbar is shown or hidden
-            if ArtisanListScrollFrame:IsShown() then
-                craftButton:SetWidth(293)
-            else
-                craftButton:SetWidth(323)
-            end
-            local color = TypeColor[craftType]
-            if color then
-                craftButton:SetTextColor(color.r, color.g, color.b)
-                craftButton.r = color.r
-                craftButton.g = color.g
-                craftButton.b = color.b
-                craftButtonCost:SetTextColor(color.r, color.g, color.b)
-                craftButtonSubText:SetTextColor(color.r, color.g, color.b)
-            end
-            craftButton:SetID(craftIndex)
-            craftButton.type = craftType
-            craftButton:Show()
-            -- Handle headers
-            if craftType == "header" then
-                craftButton:SetText(craftName)
-                craftButtonSubText:SetText("")
-                if isExpanded == 1 then
-                    craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                else
-                    craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                end
-                _G["ArtisanFrameSkill"..i.."Highlight"]:SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
-                craftButton:UnlockHighlight()
-                craftButtonIcon:SetTexture("")
-            else
-                craftButton:SetNormalTexture("")
-                if ARTISAN_CONFIG.icons then
-                    craftButtonIcon:SetTexture(Artisan_GetCraftIcon(craftIndex))
-                else
-                    craftButtonIcon:SetTexture("")
-                end
-                _G["ArtisanFrameSkill"..i.."Highlight"]:SetTexture("")
-                if craftName then
-                    -- remove (Rank) from name
-                    craftName = gsub(craftName, "  %(Rank %d+%)", "")
-                    if numAvailable == 0 then
-                        craftButton:SetText(indent..craftName)
-                    else
-                        craftButton:SetText(indent..craftName.." ["..numAvailable.."]")
-                    end
-                end
-                -- (Rank)
-                if craftSubSpellName and craftSubSpellName ~= "" then
-                    craftButtonSubText:SetText(format(PARENS_TEMPLATE, craftSubSpellName))
-                else
-                    craftButtonSubText:SetText("")
-                end
-                -- TP
-                craftButtonCost:SetText("")
-                if tab == "Beast Training" and UnitName("pet") then
-                    if trainingPointCost and trainingPointCost > 0 then
-                        craftButtonCost:SetText(format(TRAINER_LIST_TP, trainingPointCost))
-                    else
-                        craftButtonCost:SetText("")
-                    end
-                end
-                craftButtonSubText:SetPoint("LEFT", "ArtisanFrameSkill"..i.."Text", "RIGHT", 10, 0)
-                -- Place the highlight and lock the highlight state
-                if selection == craftIndex then
-                    ArtisanHighlightFrame:SetPoint("TOPLEFT", "ArtisanFrameSkill"..i, "TOPLEFT", 0, 0)
-                    ArtisanHighlightFrame:Show()
-                    craftButtonSubText:SetTextColor(1.0, 1.0, 1.0)
-                    craftButtonCost:SetTextColor(1.0, 1.0, 1.0)
-                    craftButton:LockHighlight()
-                else
-                    craftButton:UnlockHighlight()
-                end
-                if MouseIsOver(craftButton) then
-                    craftButtonSubText:SetTextColor(1.0, 1.0, 1.0)
-                    craftButtonCost:SetTextColor(1.0, 1.0, 1.0)
-                end
-            end
-        else
-            craftButton:Hide()
-        end
-    end
-    -- Set the expand/collapse all button texture
     local numHeaders = 0
     local notExpanded = 0
-    for i = 1, numCrafts, 1 do
-        local craftName, craftType, numAvailable, isExpanded = Artisan_GetCraftInfo(i)
-        if craftName and craftType == "header" then
+    for i = 1, numTradeSkills do
+        local skillName, skillType, numAvailable, isExpanded = Artisan.GetTradeSkillInfo(i)
+        if skillName and skillType == "header" then
             numHeaders = numHeaders + 1
-            if not isExpanded then
-                notExpanded = notExpanded + 1
-            end
+            if not isExpanded then notExpanded = notExpanded + 1 end
         end
-        if selection == i then
-            -- Set the max makeable items for the create all button
-            ArtisanFrame.numAvailable = numAvailable
+        if selectionIndex == i then Artisan.numAvailable = math.abs(numAvailable or 0) end
+    end
+    if notExpanded ~= numHeaders then
+        ArtisanCollapseAllButton.collapsed = false
+        ArtisanCollapseAllButton:SetDisabledTexture("Interface\\Buttons\\UI-MinusButton-Disabled")
+        ArtisanCollapseAllButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+    elseif numHeaders > 0 then
+        ArtisanCollapseAllButton.collapsed = true
+        ArtisanCollapseAllButton:SetDisabledTexture("Interface\\Buttons\\UI-PlusButton-Disabled")
+        ArtisanCollapseAllButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+    end
+    if numHeaders == 0 then
+        -- ArtisanExpandButtonFrame:Hide()
+        ArtisanCollapseAllButton:Disable()
+    else
+        -- ArtisanExpandButtonFrame:Show()
+        ArtisanCollapseAllButton:Enable()
+    end
+
+    if tab ~= "Beast Training" then
+        ArtisanHaveReagents:Show()
+    else
+        ArtisanHaveReagents:Hide()
+    end
+
+    FauxScrollFrame_Update(ArtisanListScrollFrame, numTradeSkills, MAX_SKILLS, TRADE_SKILL_HEIGHT, "ArtisanFrameSkill", 293, 316, ArtisanHighlightFrame, 293, 316)
+
+    local hasPet = Artisan.UpdateTrainingPoints()
+    local offset = FauxScrollFrame_GetOffset(ArtisanListScrollFrame)
+
+    for i = 1, MAX_SKILLS do
+        local skillIndex = i + offset
+        local skillName, skillType, numAvailable, isExpanded, subText, trainingPointCost, requiredLevel = Artisan.GetTradeSkillInfo(skillIndex)
+        local button = _G["ArtisanFrameSkill"..i]
+        local buttonText = _G["ArtisanFrameSkill"..i.."Text"]
+        local buttonCount = _G["ArtisanFrameSkill"..i.."Count"]
+        local buttonIcon = _G["ArtisanFrameSkill"..i.."Icon"]
+        local buttonSubText = _G["ArtisanFrameSkill"..i.."SubText"]
+        local buttonCost = _G["ArtisanFrameSkill"..i.."Cost"]
+        local buttonHighlight = _G["ArtisanFrameSkill"..i.."Highlight"]
+        if skillIndex <= numTradeSkills then
+            local color = Artisan.TradeSkillTypeColor[skillType]
+            if color then
+                button:SetTextColor(color.r, color.g, color.b)
+                buttonSubText:SetTextColor(color.r, color.g, color.b)
+                buttonCost:SetTextColor(color.r, color.g, color.b)
+                buttonCount:SetVertexColor(color.r, color.g, color.b)
+                button.r = color.r
+                button.g = color.g
+                button.b = color.b
+            end
+            button:SetID(skillIndex)
+            button:Show()
+            if skillType == "header" then
+                buttonText:SetText(skillName)
+                buttonText:SetPoint("LEFT", buttonHighlight, "RIGHT", 2, 1)
+                buttonSubText:SetText("")
+                buttonCost:SetText("")
+                buttonCount:SetText("")
+                if isExpanded then
+                    button:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+                else
+                    button:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                end
+                buttonHighlight:Show()
+                button:UnlockHighlight()
+                buttonIcon:SetTexture("")
+            else
+                if skillName then
+                    button:SetNormalTexture("")
+                    buttonHighlight:Hide()
+                    if numAvailable == 0 then
+                        buttonText:SetText(skillName)
+                    else
+                        buttonText:SetText(skillName.." ["..numAvailable.."]")
+                    end
+                    if ArtisanConfig.icons then
+                        buttonIcon:SetTexture(Artisan.GetTradeSkillIcon(skillIndex))
+                        buttonIcon:SetPoint("LEFT", button, "LEFT", numHeaders == 0 and 2 or 13, 0)
+                        buttonText:SetPoint("LEFT", buttonIcon, "RIGHT", 2, 1)
+                    else
+                        buttonIcon:SetTexture("")
+                        buttonText:SetPoint("LEFT", buttonHighlight, "RIGHT", numHeaders == 0 and -13 or 2, 1)
+                    end
+                    -- (Rank)
+                    if subText then
+                        buttonSubText:SetText(format(PARENS_TEMPLATE, subText))
+                        buttonSubText:SetPoint("LEFT", buttonText, "RIGHT", 10, 0)
+                    else
+                        buttonSubText:SetText("")
+                    end
+                    -- TP
+                    if hasPet and trainingPointCost and trainingPointCost > 0 then
+                        buttonCost:SetText(format(TRAINER_LIST_TP, trainingPointCost))
+                    else
+                        buttonCost:SetText("")
+                    end
+                end
+                if selectionIndex == skillIndex then
+                    ArtisanHighlightFrame:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+                    ArtisanHighlightFrame:Show()
+                    buttonCount:SetVertexColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+                    buttonSubText:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+                    buttonCost:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+                    button:LockHighlight()
+                else
+                    button:UnlockHighlight()
+                end
+            end
+        else
+            button:Hide()
         end
     end
-    -- If all headers are not expanded then show collapse button, otherwise show the expand button
-    if notExpanded ~= numHeaders then
-        ArtisanCollapseAllButton.collapsed = nil
-        ArtisanCollapseAllButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+
+    for i = 1, table.getn(Artisan.Tabs) do
+        _G["ArtisanFrameTab"..i]:SetChecked(IsCurrentCast(Artisan.Tabs[i].spell, BOOKTYPE_SPELL))
+    end
+
+    local sorting = ArtisanConfig.sorting[tab] or "DEFAULT"
+    ArtisanSortDefault:SetChecked(sorting == "DEFAULT")
+    ArtisanSortCustom:SetChecked(sorting == "CUSTOM")
+    ArtisanHaveReagents:SetChecked(ArtisanConfig.reagents[tab])
+    if sorting == "CUSTOM" then
+        ArtisanToggleEditorButton:Show()
     else
-        ArtisanCollapseAllButton.collapsed = 1
-        ArtisanCollapseAllButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+        ArtisanToggleEditorButton:Hide()
+    end
+
+    Artisan.EnableControls(not ArtisanEditor:IsShown())
+
+    if C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillListLink() or C_TradeSkillUI.GetCraftListLink() then
+        ArtisanLinkButton:Show()
+    else
+        ArtisanLinkButton:Hide()
     end
 end
 
-function Artisan_SetSelection(id)
-    if not (ArtisanFrame.selectedTabName and id) then
-        return
+function Artisan.UpdateTrainingPoints()
+    local hasPetUI, canGainXP = HasPetUI()
+    if hasPetUI and canGainXP and Artisan.currentTab == "Beast Training" then
+        local totalPoints, spent = GetPetTrainingPoints()
+        ArtisanFramePointsLabel:Show()
+        ArtisanFramePointsText:Show()
+        ArtisanFramePointsText:SetText(totalPoints - spent)
+        return true
+    else
+        ArtisanFramePointsLabel:Hide()
+        ArtisanFramePointsText:Hide()
+        return false
     end
+end
 
-    local craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel = Artisan_GetCraftInfo(id)
-    -- If the type of the selection is header, don't process all the craft details
-    if craftType == "header" then
-        if (table.getn(searchResults) == 0) then
-            if isExpanded then
-                Artisan_CollapseCraftSkillLine(id)
-            else
-                Artisan_ExpandCraftSkillLine(id)
-            end
+function Artisan.SetSelection(id)
+    if not id then return end
+
+    local skillName, skillType, numAvailable, isExpanded, subText, trainingPointCost, requiredLevel = Artisan.GetTradeSkillInfo(id)
+
+    if skillType == "header" then
+        if isExpanded then
+            Artisan.CollapseTradeSkillSubClass(id)
+        else
+            Artisan.ExpandTradeSkillSubClass(id)
         end
         ArtisanHighlightFrame:Hide()
         return
@@ -941,94 +532,98 @@ function Artisan_SetSelection(id)
         ArtisanHighlightFrame:Show()
     end
 
-    if id > Artisan_GetNumCrafts() then
+    if id > Artisan.GetNumTradeSkills() then
         return
     end
 
-    ArtisanFrame.selectedSkill = id
-    Artisan_SelectCraft(id)
+    Artisan.SelectTradeSkill(id)
+    Artisan.selectedSkill = id
 
-    local color = TypeColor[craftType]
+    local color = Artisan.TradeSkillTypeColor[skillType]
     if color then
-        ArtisanHighlightTexture:SetVertexColor(color.r, color.g, color.b)
+        ArtisanHighlightFrameTexture:SetVertexColor(color.r, color.g, color.b)
     end
-    ArtisanSkillName:SetText(gsub(craftName or "", "  %(Rank %d+%)", ""))
-    ArtisanSkillIcon:SetNormalTexture(Artisan_GetCraftIcon(id))
-    ArtisanSkillCooldown:SetText("")
-    ArtisanSkillIconCount:SetText("")
-    ArtisanCraftCost:Hide()
-    ArtisanCraftDescription:Hide()
-    -- Cooldown
-    local cooldown = Artisan_GetCraftCooldown(id)
+
+    ArtisanSkillIcon:SetNormalTexture(Artisan.GetTradeSkillIcon(id))
+    ArtisanSkillName:SetText(skillName)
+    ArtisanSkillCost:SetText("")
+    ArtisanSkillDescription:SetText("")
+
+    local cooldown = Artisan.GetTradeSkillCooldown(id)
     if cooldown then
         ArtisanSkillCooldown:SetText(COOLDOWN_REMAINING.." "..SecondsToTime(cooldown))
     else
         ArtisanSkillCooldown:SetText("")
     end
-    -- Description text
-    if Artisan_GetCraftDescription(id) and ArtisanFrame.selectedTabName == "Beast Training" then
-        ArtisanCraftDescription:Show()
-        ArtisanCraftDescription:SetText(Artisan_GetCraftDescription(id))
-        ArtisanReagentLabel:Hide()
-    else
-        ArtisanReagentLabel:Show()
-        ArtisanCraftDescription:Hide()
-    end
-    if not ArtisanFrame.craft then
-        -- Amount made
-        local minMade, maxMade = GetTradeSkillNumMade(GetTradeSkillSelectionIndex())
-        if maxMade > 1 then
-            if minMade == maxMade then
-                ArtisanSkillIconCount:SetText(minMade)
-            else
-                ArtisanSkillIconCount:SetText(minMade.."-"..maxMade)
-            end
-            if ArtisanSkillIconCount:GetWidth() > 39 then
-                ArtisanSkillIconCount:SetText("~"..floor((minMade + maxMade)/2))
-            end
+
+    local minMade, maxMade = Artisan.GetTradeSkillNumMade(id)
+    if maxMade > 1 then
+        if minMade == maxMade then
+            ArtisanSkillIconCount:SetText(minMade)
         else
-            ArtisanSkillIconCount:SetText("")
+            ArtisanSkillIconCount:SetText(minMade.."-"..maxMade)
         end
+        if ArtisanSkillIconCount:GetWidth() > 39 then
+            ArtisanSkillIconCount:SetText("~"..floor((minMade + maxMade) / 2))
+        end
+    else
+        ArtisanSkillIconCount:SetText("")
     end
-    -- Reagents
-    local creatable = craftName and true or false
-    local numReagents = Artisan_GetCraftNumReagents(id)
-    for i=1, numReagents, 1 do
-        local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan_GetCraftReagentInfo(id, i)
+
+    local creatable = skillName and true or false
+    local numReagents = Artisan.GetTradeSkillNumReagents(id)
+    if numReagents > 0 then
+        ArtisanReagentLabel:Show()
+    else
+        ArtisanReagentLabel:Hide()
+    end
+    for i = 1, MAX_TRADE_SKILL_REAGENTS do
+        local reagentName, reagentTexture, reagentCount, playerReagentCount = Artisan.GetTradeSkillReagentInfo(id, i)
         local reagent = _G["ArtisanReagent"..i]
         local name = _G["ArtisanReagent"..i.."Name"]
         local count = _G["ArtisanReagent"..i.."Count"]
-        if not reagentName or not reagentTexture then
-            reagent:Hide()
-            creatable = false
-        else
-            reagent:Show()
-            SetItemButtonTexture(reagent, reagentTexture)
-            name:SetText(reagentName)
-            -- Grayout items
-            if playerReagentCount < reagentCount then
-                SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
-                name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
+        if i <= numReagents then
+            if not (reagentName and reagentTexture) then
                 creatable = false
+                reagent:Hide()
             else
-                SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
-                name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+                reagent:Show()
+                SetItemButtonTexture(reagent, reagentTexture)
+                name:SetText(reagentName)
+                if playerReagentCount < reagentCount then
+                    SetItemButtonTextureVertexColor(reagent, 0.5, 0.5, 0.5)
+                    name:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
+                    creatable = false
+                else
+                    SetItemButtonTextureVertexColor(reagent, 1.0, 1.0, 1.0)
+                    name:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+                end
+                if playerReagentCount >= 100 then
+                    playerReagentCount = "*"
+                end
+                count:SetText(playerReagentCount.." /"..reagentCount)
             end
-            if playerReagentCount >= 100 then
-                playerReagentCount = "*"
-            end
-            count:SetText(playerReagentCount.." /"..reagentCount)
+        else
+            reagent:Hide()
         end
     end
 
-    for i=numReagents + 1, maxCraftReagents, 1 do
-        _G["ArtisanReagent"..i]:Hide()
+    if skillType == "used" then
+        creatable = false
     end
 
-    local tools = BuildColoredListString(Artisan_GetCraftTools(id))
-    if tools then
+    if creatable then
+        ArtisanFrameCreateButton:Enable()
+        ArtisanFrameCreateAllButton:Enable()
+    else
+        ArtisanFrameCreateButton:Disable()
+        ArtisanFrameCreateAllButton:Disable()
+    end
+
+    local spellFocus = BuildColoredListString(Artisan.GetTradeSkillTools(id))
+    if spellFocus then
         ArtisanRequirementLabel:Show()
-        ArtisanRequirementText:SetText(tools)
+        ArtisanRequirementText:SetText(spellFocus)
     elseif requiredLevel and requiredLevel > 0 then
         if UnitLevel("pet") >= requiredLevel then
             ArtisanRequirementLabel:Show()
@@ -1042,32 +637,31 @@ function Artisan_SetSelection(id)
         ArtisanRequirementText:SetText("")
     end
 
+    local description = Artisan.GetTradeSkillDescription(id)
+    if description and numReagents == 0 then
+        ArtisanSkillDescription:SetText(description)
+        ArtisanReagentLabel:SetPoint("TOPLEFT", "ArtisanSkillDescription", "BOTTOMLEFT", 3, -5)
+    else
+        ArtisanSkillDescription:SetText("")
+        ArtisanReagentLabel:SetPoint("TOPLEFT", "ArtisanSkillIcon", "BOTTOMLEFT", 0, -5)
+    end
+
     if trainingPointCost and trainingPointCost > 0 then
         local totalPoints, spent = GetPetTrainingPoints()
         local usablePoints = totalPoints - spent
         if usablePoints >= trainingPointCost then
-            ArtisanCraftCost:SetText(COSTS_LABEL.." "..trainingPointCost.." "..TRAINING_POINTS_LABEL)
+            ArtisanSkillCost:SetText(COSTS_LABEL.." "..trainingPointCost.." "..TRAINING_POINTS_LABEL)
         else
-            ArtisanCraftCost:SetText(COSTS_LABEL.." "..RED_FONT_COLOR_CODE..trainingPointCost..FONT_COLOR_CODE_CLOSE.." "..TRAINING_POINTS_LABEL)
+            ArtisanSkillCost:SetText(COSTS_LABEL.." "..RED_FONT_COLOR_CODE..trainingPointCost..FONT_COLOR_CODE_CLOSE.." "..TRAINING_POINTS_LABEL)
         end
-        ArtisanCraftCost:Show()
+        ArtisanSkillCost:Show()
     else
-        ArtisanCraftCost:Hide()
+        ArtisanSkillCost:Hide()
     end
 
-    if craftType == "used" then
-        creatable = false
-    end
+    -- Reset the number of items to be created
+    ArtisanFrameInputBox:SetNumber(GetTradeskillRepeatCount())
 
-    if creatable then
-        ArtisanFrameCreateButton:Enable()
-        ArtisanFrameCreateAllButton:Enable()
-    else
-        ArtisanFrameCreateButton:Disable()
-        ArtisanFrameCreateAllButton:Disable()
-    end
-
-    Artisan_UpdateDetailScrollFrame(numReagents)
     -- if using aux addon, setup total reagent cost
     if aux_frame then
         local aux = require("aux")
@@ -1075,89 +669,318 @@ function Artisan_SetSelection(id)
         local money = require("aux.util.money")
         local history = require("aux.core.history")
         local total_cost = 0
-        local function cost_label(cost)
-            local label = LIGHTYELLOW_FONT_COLOR_CODE .. '(Total Cost: ' .. FONT_COLOR_CODE_CLOSE
-            label = label .. (cost and money.to_string2(cost, nil, LIGHTYELLOW_FONT_COLOR_CODE) or GRAY_FONT_COLOR_CODE .. '?' .. FONT_COLOR_CODE_CLOSE)
-            label = label .. LIGHTYELLOW_FONT_COLOR_CODE .. ')' .. FONT_COLOR_CODE_CLOSE
+        local today_cost = 0
+        local function cost_label(cost, cost_other)
+            local label = LIGHTYELLOW_FONT_COLOR_CODE..'(Total Cost: '..FONT_COLOR_CODE_CLOSE
+            label = label..(cost and money.to_string2(cost, nil, LIGHTYELLOW_FONT_COLOR_CODE) or GRAY_FONT_COLOR_CODE..'?'..FONT_COLOR_CODE_CLOSE)
+            if cost_other > 0 then
+                label = label..LIGHTYELLOW_FONT_COLOR_CODE..' Today: '..FONT_COLOR_CODE_CLOSE..(cost_other and money.to_string2(cost_other, nil, LIGHTYELLOW_FONT_COLOR_CODE) or GRAY_FONT_COLOR_CODE..'?'..FONT_COLOR_CODE_CLOSE)
+            end
+            label = label..LIGHTYELLOW_FONT_COLOR_CODE..')'..FONT_COLOR_CODE_CLOSE
             return label
         end
         for i = 1, numReagents do
-            local link = Artisan_GetReagentItemLink(id, i)
+            local link = Artisan.GetTradeSkillReagentItemLink(id, i)
             if not link then
                 total_cost = nil
                 break
             end
             local item_id, suffix_id = info.parse_link(link)
-            local count = aux.select(3, Artisan_GetCraftReagentInfo(id, i))
+            local count = aux.select(3, Artisan.GetTradeSkillReagentInfo(id, i))
             local _, price, limited = info.merchant_info(item_id)
-            local value = price and not limited and price or history.value(item_id .. ':' .. suffix_id)
+            local value = price and not limited and price or history.value(item_id..':'..suffix_id)
+            local market_value = history.market_value(item_id..':'..suffix_id) or 0
             if not value then
                 total_cost = nil
                 break
             else
                 total_cost = total_cost + value * count
+                today_cost = today_cost + market_value * count
             end
         end
-        ArtisanReagentLabel:SetText(SPELL_REAGENTS .. ' ' .. cost_label(total_cost))
+        ArtisanReagentLabel:SetText(SPELL_REAGENTS..' '..cost_label(total_cost, today_cost))
     end
+    ArtisanDetailScrollFrame:UpdateScrollChildRect()
 end
 
-function Artisan_UpdateTrainingPoints()
-    local hasPetUI, canGainXP = HasPetUI()
-	if hasPetUI and canGainXP and ArtisanFrame.selectedTabName == "Beast Training" then
-        local totalPoints, spent = GetPetTrainingPoints()
-		ArtisanFramePointsLabel:Show()
-		ArtisanFramePointsText:Show()
-		ArtisanFramePointsText:SetText(totalPoints - spent)
-	else
-		ArtisanFramePointsLabel:Hide()
-		ArtisanFramePointsText:Hide()
-	end
+local tokens = {}
+local function GetSearchResult(data, textFilter)
+    if not data then return false end
+    if not data.skillName or data.skillName == "" then return false end
+    if data.skillType == "header" then return false end
+    tokens = Artisan.strsplit(string.lower(textFilter), tokens)
+    for i = 1, table.getn(tokens) do
+        if not string.find(string.lower(data.skillName), tokens[i], 1, true) then return false end
+    end
+    return true
 end
 
-function Artisan_UpdateDetailScrollFrame(numReagents)
-    if numReagents > 4 then
-        ArtisanDetailScrollFrame:SetAlpha(1)
-        ArtisanDetailScrollChildFrame:SetAlpha(1)
-        ArtisanDetailScrollFrame:SetScript("OnMouseWheel", ArtisanFrame.originalScroll)
-        ArtisanDetailScrollFrameScrollBar:EnableMouse(1)
-        ArtisanDetailScrollFrameScrollBar:Show()
-        ArtisanDetailScrollFrame:UpdateScrollChildRect()
+function Artisan.UpdateSkills()
+    local tab = Artisan.currentTab
+    local sorting = ArtisanConfig.sorting[tab]
+    if not (tab and sorting) then return end
+    if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
+    if not ArtisanCustom[tab] then ArtisanCustom[tab] = {} end
+
+    local onlyShowMakeable = ArtisanConfig.reagents[tab]
+    local textFilter = ArtisanFrameSearchBox:GetText()
+    local isCraft = Artisan.IsCraft()
+    local numSkills = isCraft and GetNumCrafts() or GetNumTradeSkills()
+    local selectionName, selectionSubText
+    if isCraft then
+        selectionName, selectionSubText = GetCraftInfo(GetCraftSelectionIndex())
+        if selectionSubText == "" then selectionSubText = nil end
     else
-        ArtisanDetailScrollFrame:SetAlpha(0)
-        ArtisanDetailScrollChildFrame:SetAlpha(1)
-        ArtisanDetailScrollFrame:SetScript("OnMouseWheel", nil)
-        ArtisanDetailScrollFrameScrollBar:EnableMouse(nil)
-        ArtisanDetailScrollFrameScrollBar:Hide()
+        selectionName = GetTradeSkillInfo(GetTradeSkillSelectionIndex())
+    end
+
+    Artisan.wipe(Artisan.Skills)
+
+    if sorting == "DEFAULT" then
+        local patterns = Artisan.Patterns[tab]
+        if patterns and isCraft then
+            for skill = numSkills, 1, -1 do
+                local headerName = "Miscellaneous"
+                local skillName, subText, skillType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(skill)
+                if subText == "" then subText = nil end
+                for pattern, header in pairs(patterns) do
+                    if string.find(string.lower(skillName), string.lower(pattern)) then
+                        headerName = header
+                        break
+                    end
+                end
+                local insertionIndex = 0
+                for index, value in pairs(Artisan.Skills) do
+                    if value.skillType == "header" and value.skillName == headerName then
+                        insertionIndex = index + 1
+                        break
+                    end
+                end
+                if insertionIndex == 0 then
+                    table.insert(Artisan.Skills, 1, {
+                        skillName = headerName,
+                        skillType = "header",
+                        numAvailable = 0,
+                        isExpanded = not Artisan.CollapsedHeaders[tab][headerName] and 1 or nil,
+                        id = nil,
+                    })
+                    insertionIndex = 2
+                end
+                table.insert(Artisan.Skills, insertionIndex, {
+                    skillName = skillName,
+                    skillType = skillType,
+                    numAvailable = numAvailable,
+                    isExpanded = nil,
+                    subText = subText,
+                    trainingPointCost = trainingPointCost,
+                    requiredLevel = requiredLevel,
+                    id = skill,
+                })
+            end
+        elseif isCraft then
+            for skill = 1, numSkills do
+                local skillName, subText, skillType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(skill)
+                if subText == "" then subText = nil end
+                table.insert(Artisan.Skills, {
+                    skillName = skillName,
+                    skillType = skillType,
+                    numAvailable = numAvailable,
+                    isExpanded = nil,
+                    subText = subText,
+                    trainingPointCost = trainingPointCost,
+                    requiredLevel = requiredLevel,
+                    id = skill,
+                })
+            end
+        elseif not isCraft then
+            for skill = 1, numSkills do
+                local skillName, skillType, numAvailable, isExpanded = GetTradeSkillInfo(skill)
+                table.insert(Artisan.Skills, {
+                    skillName = skillName,
+                    skillType = skillType,
+                    numAvailable = numAvailable,
+                    isExpanded = skillType == "header" and not Artisan.CollapsedHeaders[tab][skillName] and 1 or nil,
+                    subText = nil,
+                    trainingPointCost = 0,
+                    requiredLevel = 0,
+                    id = skill,
+                })
+            end
+        end
+    elseif sorting == "CUSTOM" then
+        Artisan.wipe(Artisan.CustomCategories)
+        -- copy custom headers from saved variable
+        for i = 1, table.getn(ArtisanCustom[tab]) do
+            local data = ArtisanCustom[tab][i]
+            if data.isHeader then
+                table.insert(Artisan.Skills, {
+                    skillName = data.skillName,
+                    skillType = "header",
+                    numAvailable = 0,
+                    isExpanded = not Artisan.CollapsedHeaders[tab][data.skillName] and 1 or nil,
+                    id = nil,
+                })
+                table.insert(Artisan.CustomCategories, Artisan.Skills[table.getn(Artisan.Skills)])
+            else
+                for skill = 1, numSkills do
+                    local skillName, skillType, numAvailable, isExpanded
+                    local subText, trainingPointCost, requiredLevel
+                    if isCraft then
+                        skillName, subText, skillType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(skill)
+                        if subText == "" then subText = nil end
+                    else
+                        skillName, skillType, numAvailable, isExpanded = GetTradeSkillInfo(skill)
+                    end
+                    if skillName == data.skillName then
+                        local insert = true
+                        if data.subText and subText then
+                            insert = data.subText == subText
+                        end
+                        if insert then
+                            table.insert(Artisan.Skills, {
+                                skillName = skillName,
+                                skillType = skillType,
+                                numAvailable = numAvailable,
+                                isExpanded = nil,
+                                subText = subText,
+                                trainingPointCost = trainingPointCost,
+                                requiredLevel = requiredLevel,
+                                id = skill,
+                            })
+                            table.insert(Artisan.CustomCategories, Artisan.Skills[table.getn(Artisan.Skills)])
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        -- put remaining skills into uncategorized header
+        table.insert(Artisan.Skills, {
+            skillName = "Uncategorized",
+            skillType = "header",
+            numAvailable = 0,
+            isExpanded = not Artisan.CollapsedHeaders[tab]["Uncategorized"] and 1 or nil,
+            id = nil,
+        })
+        Artisan.wipe(Artisan.Uncategorized)
+        for skill = 1, numSkills do
+            local skillName, skillType, numAvailable, isExpanded
+            local subText, trainingPointCost, requiredLevel
+            if isCraft then
+                skillName, subText, skillType, numAvailable, isExpanded, trainingPointCost, requiredLevel = GetCraftInfo(skill)
+                if subText == "" then subText = nil end
+            else
+                skillName, skillType, numAvailable, isExpanded = GetTradeSkillInfo(skill)
+            end
+            if skillType ~= "header" then
+                local addToUncategorized = true
+                for k, v in pairs(Artisan.Skills) do
+                    if subText and subText == v.subText and skillName == v.skillName then
+                        addToUncategorized = false
+                        break
+                    elseif not subText and skillName == v.skillName then
+                        addToUncategorized = false
+                        break
+                    end
+                end
+                if addToUncategorized then
+                    table.insert(Artisan.Skills, {
+                        skillName = skillName,
+                        skillType = skillType,
+                        numAvailable = numAvailable,
+                        isExpanded = nil,
+                        subText = subText,
+                        trainingPointCost = trainingPointCost,
+                        requiredLevel = requiredLevel,
+                        id = skill,
+                    })
+                    table.insert(Artisan.Uncategorized, Artisan.Skills[table.getn(Artisan.Skills)])
+                end
+            end
+        end
+    end
+
+    -- apply filters
+    if onlyShowMakeable or textFilter ~= "" then
+        for i = table.getn(Artisan.Skills), 1, -1 do
+            local data = Artisan.Skills[i]
+            local name = data.skillName
+            if data.subText then name = name.." "..data.subText end
+            name = string.lower(name)
+            if (onlyShowMakeable and data.numAvailable == 0) or (textFilter ~= "" and not GetSearchResult(data, textFilter)) then
+                table.remove(Artisan.Skills, i)
+            end
+        end
+    end
+
+    -- remove headers that dont contain any skills and collapsed headers
+    local remove
+    local i = 1
+    while i <= table.getn(Artisan.Skills) do
+        if Artisan.Skills[i].skillType == "header" then
+            remove = not Artisan.Skills[i].isExpanded
+            if (Artisan.Skills[i + 1] and Artisan.Skills[i + 1].skillType == "header") or not Artisan.Skills[i + 1] then
+                table.remove(Artisan.Skills, i)
+            else
+                i = i + 1
+            end
+        else
+            if remove then
+                table.remove(Artisan.Skills, i)
+            else
+                i = i + 1
+            end
+        end
+    end
+
+    -- update selection index
+    if selectionName then
+        for i = 1, table.getn(Artisan.Skills) do
+            local data = Artisan.Skills[i]
+            if data.skillName == selectionName then
+                if selectionSubText and data.subText then
+                    if selectionSubText == data.subText then
+                        Artisan.SelectTradeSkill(i)
+                        return
+                    end
+                else
+                    Artisan.SelectTradeSkill(i)
+                    return
+                end
+            end
+        end
+    end
+    Artisan.SelectTradeSkill(0)
+end
+
+function Artisan.DetailScrollFrame_OnScrollRangeChanged(self, xrange, yrange)
+    local name = self:GetName()
+    local scrollbar = _G[name.."ScrollBar"]
+    local top = _G[name.."Top"]
+    local bottom = _G[name.."Bottom"]
+    if Artisan.GetTradeSkillNumReagents(Artisan.selectedSkill) <= 4 then
+        yrange = 0
+    end
+    scrollbar:SetValue(0)
+    ScrollFrame_OnScrollRangeChanged(yrange)
+    if yrange == 0 then
+        top:Hide()
+        bottom:Hide()
+    else
+        top:Show()
+        bottom:Show()
     end
 end
 
-function ArtisanCollapseAllButton_OnClick()
-	if this.collapsed then
-		this.collapsed = nil
-        ArtisanListScrollFrameScrollBar:SetValue(0)
-        Artisan_ExpandCraftSkillLine(0)
-	else
-		this.collapsed = 1
-		ArtisanListScrollFrameScrollBar:SetValue(0)
-        Artisan_CollapseCraftSkillLine(0)
-	end
-    ArtisanFrameSearchBox:ClearFocus()
-end
+function Artisan.SkillButton_OnClick(self, button)
+    -- ArtisanFrameSearchBox:ClearFocus()
 
-function ArtisanSkillButton_OnClick(button)
-    ArtisanFrameSearchBox:ClearFocus()
-
-    if button ~= "LeftButton" then
-        return
-    end
     if IsShiftKeyDown() then
-        local tab = ArtisanFrame.selectedTabName
-        local sorting = ARTISAN_CONFIG.sorting[tab]
-        local craftIndex = this:GetID()
+        local skillIndex = self:GetID()
+        local skillType = Artisan.Skills[skillIndex].skillType
         local channel, chatNumber
 
-        if not this.type or this.type == "header" or this.type == "none" or this.type == "used" then
+        if not skillType or skillType == "header" or skillType == "none" or skillType == "used" then
             return
         end
 
@@ -1174,12 +997,8 @@ function ArtisanSkillButton_OnClick(button)
         end
 
         local numMade = ""
-        if not ArtisanFrame.craft then
-            local selection = craftIndex
-            if sorting == "custom" then
-                selection = ARTISAN_SKILLS[tab][sorting][craftIndex].id
-            end
-            local minMade, maxMade = GetTradeSkillNumMade(selection)
+        if not Artisan.IsCraft() then
+            local minMade, maxMade = Artisan.GetTradeSkillNumMade(skillIndex)
             if maxMade ~= minMade then
                 numMade = minMade.."-"..maxMade.."x"
             elseif minMade ~= 1 then
@@ -1187,15 +1006,17 @@ function ArtisanSkillButton_OnClick(button)
             end
         end
 
-        local itemLink = Artisan_GetItemLink(craftIndex)
+        local itemLink = Artisan.GetTradeSkillItemLink(skillIndex)
+        if not itemLink then return end
+
         local linksCount = 0
         local msg = ""
 
         SendChatMessage(numMade..itemLink.." reagents:", channel, nil, chatNumber)
-        for reagentIndex = 1, Artisan_GetCraftNumReagents(craftIndex) do
-            local _, _, reagentsNeeded = Artisan_GetCraftReagentInfo(craftIndex, reagentIndex)
-            local reagentLink = Artisan_GetReagentItemLink(craftIndex, reagentIndex)
-    
+        for reagentIndex = 1, Artisan.GetTradeSkillNumReagents(skillIndex) do
+            local _, _, reagentsNeeded = Artisan.GetTradeSkillReagentInfo(skillIndex, reagentIndex)
+            local reagentLink = Artisan.GetTradeSkillReagentItemLink(skillIndex, reagentIndex)
+            if not reagentLink then return end
             msg = msg..reagentsNeeded.."x"..reagentLink.." "
             linksCount = linksCount + 1
             if linksCount == 4 then
@@ -1207,1207 +1028,489 @@ function ArtisanSkillButton_OnClick(button)
         if linksCount > 0 then
             SendChatMessage(msg, channel, nil, chatNumber)
         end
-    else
+    elseif button == "LeftButton" then
         ArtisanDetailScrollFrame:SetVerticalScroll(0)
-        Artisan_SetSelection(this:GetID())
-        ArtisanFrame_Search()
+        Artisan.SetSelection(self:GetID())
+        Artisan.UpdateFrame()
     end
 end
 
-function ArtisanSideTab_OnCLick()
-    if this.name == ArtisanFrame.selectedTabName then
-        this:SetChecked(1)
-        return
+function Artisan.IncrementButton_OnClick(self, button)
+    if ArtisanFrameInputBox:GetNumber() < 100 then
+        ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() + 1)
     end
-
-    if this.name ~= ArtisanFrame.selectedTabName then
-        ArtisanFrame.craft = this.name == "Enchanting" or this.name == "Beast Training" or this.name == "Disguise"
-        ArtisanFrame.selectedTabName = this.name
-        CastSpellByName(this.name)
-        Artisan_UpdateSkillList()
-        Artisan_SetSelection(Artisan_GetFirstCraft())
-    end
-
-    if ArtisanEditor:IsShown() then
-        if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] == "custom" then
-            ArtisanEditor:Hide()
-            ArtisanEditor:Show()
-            ArtisanEditor_Search()
-            ArtisanEditorRight_Update()
-        else
-            ArtisanEditor:Hide()
-        end
-    end
-
-    ArtisanListScrollFrame:SetVerticalScroll(0)
-    ArtisanDetailScrollFrame:SetVerticalScroll(0)
-    PlaySound("igCharacterInfoTab")
-    ArtisanFrame_Search()
-end
-
-function ArtisanFrameIncrementButton_OnClick()
-	if ArtisanFrameInputBox:GetNumber() < 100 then
-		ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() + 1)
-	end
     ArtisanFrameSearchBox:ClearFocus()
 end
 
-function ArtisanFrameDecrementButton_OnClick()
-	if ArtisanFrameInputBox:GetNumber() > 0 then
-		ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() - 1)
-	end
+function Artisan.DecrementButton_OnClick(self, button)
+    if ArtisanFrameInputBox:GetNumber() > 0 then
+        ArtisanFrameInputBox:SetNumber(ArtisanFrameInputBox:GetNumber() - 1)
+    end
     ArtisanFrameSearchBox:ClearFocus()
 end
 
-function Artisan_ItemOnClick(link)
-    if not link then
-        return
-    end
-	if arg1 and arg1 == "RightButton" then
-		if aux_frame and aux_frame:IsShown() then
-			local _, _, id = string.find(link, "item:(%d+)")
-			local ref
-			if not id then
-				_, _, id = string.find(link, "enchant:(%d+)")
-				ref = string.format("enchant:%d", tonumber(id or 0))
-			else
-				ref = string.format("item:%d", tonumber(id or 0))
-			end
-			SetItemRef(ref, "", "RightButton")
-		elseif CanSendAuctionQuery() and BrowseName then
-			BrowseName:SetText(link)
-			AuctionFrameBrowse_Search()
-			BrowseNoResultsText:SetText(BROWSE_NO_RESULTS)
-		end
-	elseif IsControlKeyDown() then
-		DressUpItemLink(link)
-	elseif IsShiftKeyDown() then
-		if WIM_EditBoxInFocus then
-			WIM_EditBoxInFocus:Insert(link)
-		elseif ChatFrameEditBox:IsShown() then
-			ChatFrameEditBox:Insert(link)
-        end
-    end
-end
-
-function Artisan_GetCraftInfo(index)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting and index) then
-        return
-    end
-
-    if not ArtisanFrame.craft and sorting == "default" then
-        return GetTradeSkillInfo(index)
-    end
-
-    if index <= 0 then
-        return nil, nil, 0, nil, nil, 0, 0
-    end
-
-    local craftName = ""
-    local craftType = ""
-    local numAvailable = 0
-    local isExpanded = nil
-    local craftSubSpellName = ""
-    local trainingPointCost = 0
-    local requiredLevel = 0
-
-    if ARTISAN_SKILLS[tab][sorting][index] then
-        craftName = ARTISAN_SKILLS[tab][sorting][index].name or ""
-        craftType = ARTISAN_SKILLS[tab][sorting][index].type or ""
-        numAvailable = ARTISAN_SKILLS[tab][sorting][index].num or 0
-        isExpanded = ARTISAN_SKILLS[tab][sorting][index].exp or nil
-        craftSubSpellName = ARTISAN_SKILLS[tab][sorting][index].sub or ""
-        trainingPointCost = ARTISAN_SKILLS[tab][sorting][index].tp or 0
-        requiredLevel = ARTISAN_SKILLS[tab][sorting][index].lvl or 0
-    end
-
-    return craftName, craftType, numAvailable, isExpanded, craftSubSpellName, trainingPointCost, requiredLevel
-end
-
-function Artisan_GetCraftSkillLine()
-    if not ArtisanFrame.craft then
-        return GetTradeSkillLine()
-    end
-
-    return GetCraftDisplaySkillLine()
-end
-
-function Artisan_CollapseCraftSkillLine(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then
-        return
-    end
-
-    if not ArtisanFrame.craft and sorting == "default" then
-        CollapseTradeSkillSubClass(id)
-        ArtisanFrame_Search()
-        return
-    end
-
-    collapsedHeaders[tab] = collapsedHeaders[tab] or {}
-    collapsedHeaders[tab][sorting] = collapsedHeaders[tab][sorting] or {}
-
-    if ARTISAN_SKILLS[tab][sorting][id].type ~= "header" then
-        return
-    end
-
-    if id <= 0 then
-        ArtisanFrame.selectedSkill = 0
-        -- collapse all
-        for i = 0, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
-                collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] = true
-            end
-        end
-        Artisan_UpdateSkillList()
-        Artisan_SetSelection(0)
+function Artisan.CollapseAllButton_OnClick(self, button)
+    if self.collapsed then
+        self.collapsed = false
+        Artisan.ExpandTradeSkillSubClass(0)
     else
-        -- collapse only 1
-        local headerName = ARTISAN_SKILLS[tab][sorting][id].name
-        collapsedHeaders[tab][sorting][headerName] = true
-        Artisan_UpdateSkillList()
-        local allCollapsed = true
-        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting][i].exp then
-                allCollapsed = false
-                break
-            end
-        end
-        if allCollapsed then
-            Artisan_SetSelection(0)
-        else
-            local selection = Artisan_GetCraftSelectionIndex()
-            if selection > 1 and selection <= Artisan_GetNumCrafts() and ARTISAN_SKILLS[tab][sorting][selection] and ARTISAN_SKILLS[tab][sorting][selection].type ~= "header" then
-                Artisan_SetSelection(selection)
-            else
-                Artisan_SetSelection(Artisan_GetFirstCraft())
-            end
-        end
+        self.collapsed = true
+        ArtisanListScrollFrameScrollBar:SetValue(0)
+        Artisan.CollapseTradeSkillSubClass(0)
     end
-    ArtisanFrame_Search()
 end
 
-function Artisan_ExpandCraftSkillLine(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then
+function Artisan.Tab_OnCLick(self, button)
+    if not self.name then return end
+    if self.name == Artisan.currentTab then
+        self:SetChecked(true)
         return
     end
+    if self.name ~= Artisan.currentTab then
+        ArtisanDetailScrollFrame:SetVerticalScroll(0)
+        Artisan.currentTab = self.name
+        CastSpellByName(self.name)
+        PlaySound("igCharacterInfoTab")
+    end
+end
 
-    if not ArtisanFrame.craft and sorting == "default" then
-        ExpandTradeSkillSubClass(id)
-        ArtisanFrame_Search()
+function Artisan.HaveReagents_OnClick(self, button)
+    ArtisanFrameSearchBox:ClearFocus()
+    local checked = self:GetChecked() and true or false
+    ArtisanConfig.reagents[Artisan.currentTab] = checked
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+end
+
+function Artisan.SortDefault_OnClick(self, button)
+    ArtisanFrameSearchBox:ClearFocus()
+    local checked = self:GetChecked() and true or false
+    if not checked then
+        self:SetChecked(true)
         return
     end
+    ArtisanConfig.sorting[Artisan.currentTab] = "DEFAULT"
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+    ArtisanEditor:Hide()
+end
 
-    if ARTISAN_SKILLS[tab][sorting][id].type ~= "header" then
+function Artisan.SortCustom_OnClick(self, button)
+    ArtisanFrameSearchBox:ClearFocus()
+    local checked = self:GetChecked() and true or false
+    if not checked then
+        self:SetChecked(true)
         return
     end
-
-	if not ARTISAN_SKILLS[tab][sorting][id].childs then
-		return
-	end
-
-    if not collapsedHeaders[tab] then collapsedHeaders[tab] = {} end
-    if not collapsedHeaders[tab][sorting] then collapsedHeaders[tab][sorting] = {} end
-
-    if id <= 0 then
-        -- expand all
-        for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-            if ARTISAN_SKILLS[tab][sorting][i].type == "header" then
-                collapsedHeaders[tab][sorting][ARTISAN_SKILLS[tab][sorting][i].name] = nil
-            end
-        end
-        Artisan_UpdateSkillList()
-        Artisan_SetSelection(Artisan_GetFirstCraft())
-    else
-        -- expand 1
-        local headerName = ARTISAN_SKILLS[tab][sorting][id].name
-        collapsedHeaders[tab][sorting][headerName] = nil
-        Artisan_UpdateSkillList()
-        local selection = Artisan_GetCraftSelectionIndex()
-        if selection > 1 and selection <= Artisan_GetNumCrafts() and ARTISAN_SKILLS[tab][sorting][selection] and ARTISAN_SKILLS[tab][sorting][selection].type ~= "header" then
-            Artisan_SetSelection(selection)
-        else
-            Artisan_SetSelection(Artisan_GetFirstCraft())
-        end
-    end
-    ArtisanFrame_Search()
+    ArtisanConfig.sorting[Artisan.currentTab] = "CUSTOM"
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
 end
 
-function Artisan_GetItemLink(index)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and index) then
-        return nil
-    end
-	if ArtisanFrame.craft then
-        local originalID = ARTISAN_SKILLS[tab][sorting][index] and ARTISAN_SKILLS[tab][sorting][index].id or 0
-		return GetCraftItemLink(originalID)
-	else
-        if sorting ~= "custom" then
-		    return GetTradeSkillItemLink(index)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][index] and ARTISAN_SKILLS[tab][sorting][index].id or 0
-            return GetTradeSkillItemLink(originalID)
-        end
-	end
-end
-
-function Artisan_GetReagentItemLink(craftIndex, reagentIndex)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and craftIndex and reagentIndex) then
-        return nil
-    end
-    if ArtisanFrame.craft then
-        local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex] and ARTISAN_SKILLS[tab][sorting][craftIndex].id or 0
-        return GetCraftReagentItemLink(originalIndex, reagentIndex)
-    else
-        if sorting ~= "custom" then
-            return GetTradeSkillReagentItemLink(craftIndex, reagentIndex)
-        else
-            local originalIndex = ARTISAN_SKILLS[tab][sorting][craftIndex] and ARTISAN_SKILLS[tab][sorting][craftIndex].id or 0
-            return GetTradeSkillReagentItemLink(originalIndex, reagentIndex)
-        end
-    end
-end
-
-function Artisan_GetFirstCraft()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-
-    if not (tab and sorting) then
-        return nil
-    end
-
-    if not ArtisanFrame.craft and sorting == "default" then
-        return GetFirstTradeSkill()
-    end
-
-    ARTISAN_SKILLS[tab] = ARTISAN_SKILLS[tab] or {}
-    ARTISAN_SKILLS[tab][sorting] = ARTISAN_SKILLS[tab][sorting] or {}
-
-    for i = 1, table.getn(ARTISAN_SKILLS[tab][sorting]) do
-        local skillType = ARTISAN_SKILLS[tab][sorting][i].type
-        if skillType and skillType ~= "" and skillType ~= "header" then
-            return i
-        end
-    end
-
-    return 0
-end
-
-function Artisan_DoCraft(numAvailable)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    local skill = ArtisanFrame.selectedSkill
-    if not (tab and sorting and skill) then
-        return
-    end
-    if ArtisanFrame.craft then
-        local originalID = ARTISAN_SKILLS[tab][sorting][skill] and ARTISAN_SKILLS[tab][sorting][skill].id or 0
-        DoCraft(originalID)
-    else
-        local amount = ArtisanFrameInputBox:GetNumber()
-        if numAvailable then
-            amount = numAvailable
-        end
-        if sorting == "custom" then
-            local originalID = ARTISAN_SKILLS[tab][sorting][skill] and ARTISAN_SKILLS[tab][sorting][skill].id or 0
-            DoTradeSkill(originalID, amount)
-        else
-            DoTradeSkill(skill, amount)
-        end
-    end
-    ArtisanFrameInputBox:ClearFocus()
-end
-
-function Artisan_GetNumCrafts()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting) then
-        return 0
-    end
-    if not ArtisanFrame.craft and sorting == "default" then
-        return GetNumTradeSkills()
-    end
-    if not (ARTISAN_SKILLS[tab] and ARTISAN_SKILLS[tab][sorting]) then
-        return 0
-    end
-    return table.getn(ARTISAN_SKILLS[tab][sorting])
-end
-
-function Artisan_SelectCraft(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id) then
-        return
-    end
-    id = max(0, id)
-    if not ArtisanFrame.craft then
-        if sorting == "default" then
-            return SelectTradeSkill(id)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-            return SelectTradeSkill(originalID)
-        end
-    end
-    if ARTISAN_SKILLS[tab][sorting][id] then
-        local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-        SelectCraft(originalID)
-    end
-end
-
-function Artisan_GetCraftSelectionIndex()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting) then return 0, 0 end
-    local trueIndex = 0
-    if ArtisanFrame.craft then
-        trueIndex = GetCraftSelectionIndex()
-    else
-        trueIndex = GetTradeSkillSelectionIndex()
-        if sorting == "default" then return trueIndex, trueIndex end
-    end
-    if ARTISAN_SKILLS[tab] and ARTISAN_SKILLS[tab][sorting] then
-        for index, data in pairs(ARTISAN_SKILLS[tab][sorting]) do
-            if data.id == trueIndex then return index, trueIndex end
-        end
-    end
-    return 0, 0
-end
-
-function Artisan_GetCraftIcon(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id) then
-        return nil
-    end
-    if not ArtisanFrame.craft then
-        if sorting == "default" then
-            return GetTradeSkillIcon(id)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-            return GetTradeSkillIcon(originalID)
-        end
-    end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-    return GetCraftIcon(originalID)
-end
-
-function Artisan_GetCraftCooldown(id)
-    if not id then
-        return nil
-    end
-    if ArtisanFrame.craft then
-        if dreamstoneKnown and strfind(Artisan_GetItemLink(id) or "", DREAMSTONE_SPELL_LINK) and ARTISAN_DREAMSTONE_TIME then
-            local cd = ARTISAN_DREAMSTONE_TIME + 259200 - time()
-            return cd > 0 and cd or nil
-        end
-        return nil
-    else
-        return GetTradeSkillCooldown(GetTradeSkillSelectionIndex())
-    end
-end
-
-function Artisan_GetCraftDescription(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id) then
-        return nil
-    end
-    if not ArtisanFrame.craft then
-        return nil
-    end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-    return GetCraftDescription(originalID)
-end
-
-function Artisan_GetCraftNumReagents(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id) then
-        return nil
-    end
-    if not ArtisanFrame.craft then
-        if sorting == "default" then
-            return GetTradeSkillNumReagents(id)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-            return GetTradeSkillNumReagents(originalID)
-        end
-    end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-    return GetCraftNumReagents(originalID)
-end
-
-function Artisan_GetCraftReagentInfo(id, i)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id and i) then
-        return nil
-    end
-    if not ArtisanFrame.craft then
-        if sorting == "default" then
-            return GetTradeSkillReagentInfo(id, i)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-            return GetTradeSkillReagentInfo(originalID, i)
-        end
-    end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-    return GetCraftReagentInfo(originalID, i)
-end
-
-function Artisan_GetCraftTools(id)
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not (tab and sorting and id) then
-        return nil
-    end
-    if not ArtisanFrame.craft then
-        if sorting == "default" then
-            return GetTradeSkillTools(id)
-        else
-            local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-            return GetTradeSkillTools(originalID)
-        end
-    end
-    local originalID = ARTISAN_SKILLS[tab][sorting][id] and ARTISAN_SKILLS[tab][sorting][id].id or 0
-    return GetCraftSpellFocus(originalID)
-end
-
-function ArtisanEditButton_OnClick()
+function Artisan.ToggleEditorButton_OnClick(self, button)
+    ArtisanFrameSearchBox:ClearFocus()
     if ArtisanEditor:IsShown() then
         ArtisanEditor:Hide()
     else
         ArtisanEditor:Show()
-        Artisan_UpdateSkillList()
-        ArtisanEditor_Search()
-        ArtisanEditorRight_Update()
     end
 end
 
-function ArtisanSortDefault_OnClick()
-    if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] ~= "default" then
-        ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] = "default"
-        this:SetChecked(1)
-        ArtisanSortCustom:SetChecked(nil)
-        Artisan_UpdateSkillList()
-        Artisan_SetSelection(Artisan_GetFirstCraft())
-        ArtisanFrame_Search()
-        ArtisanFrameEditButton:Hide()
-        if ArtisanEditor:IsShown() then
-            ArtisanEditor:Hide()
-        end
-        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-        ArtisanListScrollFrame:SetVerticalScroll(0)
-        ArtisanDetailScrollFrame:SetVerticalScroll(0)
-    else
-        this:SetChecked(1)
-    end
-    ArtisanDetailScrollFrame:SetVerticalScroll(0)
+function Artisan.IsCraft()
+    local tab = Artisan.currentTab
+    return tab and (tab == "Enchanting" or tab == "Beast Training" or tab == "Disguise")
 end
 
-function ArtisanSortCustom_OnClick()
-    if ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] ~= "custom" then
-        ARTISAN_CONFIG.sorting[ArtisanFrame.selectedTabName] = "custom"
-        this:SetChecked(1)
-        ArtisanSortDefault:SetChecked(nil)
-        ArtisanEditor_OnShow()
-        Artisan_UpdateSkillList()
-        Artisan_SetSelection(Artisan_GetFirstCraft())
-        ArtisanFrame_Search()
-        ArtisanFrameEditButton:Show()
-        FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-        ArtisanListScrollFrame:SetVerticalScroll(0)
-        ArtisanDetailScrollFrame:SetVerticalScroll(0)
-    else
-        this:SetChecked(1)
-    end
-    ArtisanDetailScrollFrame:SetVerticalScroll(0)
+function Artisan.IsTradeSkill()
+    local tab = Artisan.currentTab
+    return tab and tab ~= "Enchanting" and tab ~= "Beast Training" and tab ~= "Disguise"
 end
 
-function Artisan_HaveReagents_OnClick()
-    if ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName] ~= true then
-        ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName] = true
-        this:SetChecked(1)
-    else
-        ARTISAN_CONFIG.reagents[ArtisanFrame.selectedTabName] = false
-        this:SetChecked(nil)
+function Artisan.GetTradeSkillLine()
+    local name
+    local current, max = 0, 0
+    name, current, max = GetTradeSkillLine()
+    if max > 0 then return name, current, max end
+    name, current, max = GetCraftDisplaySkillLine()
+    if name and max > 0 then
+        return name, current, max
     end
-    FauxScrollFrame_SetOffset(ArtisanListScrollFrame, 0)
-    ArtisanListScrollFrame:SetVerticalScroll(0)
-    ArtisanDetailScrollFrame:SetVerticalScroll(0)
-    Artisan_UpdateSkillList()
-    ArtisanFrame_Search()
+    name = GetCraftName()
+    if name == "Beast Training" or name == "Disguise" or name == "Enchanting" then
+        return name, current, max
+    end
+    return nil, 0, 0
 end
 
-function ArtisanEditorLeftButton_OnClick()
-    if not ArtisanEditor.currentHeader then
-        return
-    end
-    local parentIndex = ArtisanEditor.currentHeader
-    local tabName = ArtisanFrame.selectedTabName
-    local name, type, num, sub, tp, lvl, id = this.name, this.type, this.num, this.sub, this.tp, this.lvl, this.id
-    if this.type ~= "header" then
-        table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, 1, name)
-        table.insert(ARTISAN_CUSTOM[tabName], parentIndex + 1, {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id, parent = parentIndex})
-    end
-    table.remove(ARTISAN_UNCATEGORIZED[tabName], this:GetID())
-    -- increment parent index for skills that belong to headers below
-    for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-        if v.parent and v.parent > parentIndex then
-            v.parent = v.parent + 1
+function Artisan.GetNumTradeSkills()
+    return table.getn(Artisan.Skills)
+end
+
+function Artisan.GetFirstTradeSkill()
+    local id = 0
+    for i = 1, table.getn(Artisan.Skills) do
+        if Artisan.Skills[i].skillType and Artisan.Skills[i].skillType ~= "header" then
+            return i
         end
     end
-    Artisan_UpdateSkillList()
-    ArtisanEditor_Search()
-    ArtisanEditorRight_Update()
+    return id
 end
 
-function ArtisanEditorRightButton_OnClick()
-    if this.type == "header" then
-        ArtisanEditor.currentHeader = this:GetID()
+function Artisan.SelectTradeSkill(id)
+    id = math.max(0, id)
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        SelectCraft(id)
     else
-        ArtisanEditor.currentHeader = this.parent
+        SelectTradeSkill(id)
     end
-    Artisan_UpdateSkillList()
-    ArtisanEditorRight_Update()
 end
 
-function ArtisanRightButtonUp_OnClick()
-    local thisButton = _G["ArtisanEditorSkillRight"..this:GetID()]
-    local craftIndex = thisButton:GetID()
-	local prevIndex = craftIndex - 1
-    local tabName = ArtisanFrame.selectedTabName
-    local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
-	local currentHeaderName
-	if ArtisanEditor.currentHeader then
-		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
-	end
-
-    if not (craftIndex and craftIndex > 2) then
-        return
+function Artisan.GetTradeSkillSelectionIndex()
+    local isCraft = Artisan.IsCraft()
+    local trueIndex = isCraft and GetCraftSelectionIndex() or GetTradeSkillSelectionIndex()
+    local selectionIndex = trueIndex
+    for index, data in pairs(Artisan.Skills) do
+        if data.id == trueIndex then
+            selectionIndex = index
+            break
+        end
     end
+    return selectionIndex, trueIndex
+end
 
-    if thisButton.type ~= "header" then
-        local temp = ARTISAN_CUSTOM[tabName][craftIndex]
-        ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][prevIndex]
-        ARTISAN_CUSTOM[tabName][prevIndex] = temp
+function Artisan.GetTradeSkillInfo(id)
+    if not id or id <= 0 then return nil, nil, 0, nil, nil, 0, 0 end
+    local skillName, skillType, isExpanded, subText
+    local numAvailable, trainingPointCost, requiredLevel = 0, 0, 0
+    local data = Artisan.Skills[id]
+    if data then
+        skillName, skillType, numAvailable, isExpanded, subText, trainingPointCost, requiredLevel = data.skillName, data.skillType, data.numAvailable or 0, data.isExpanded, data.subText, data.trainingPointCost or 0, data.requiredLevel or 0
+    end
+    return skillName, skillType, numAvailable, isExpanded, subText, trainingPointCost, requiredLevel
+end
 
-        if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
-            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                    table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                end
+function Artisan.GetTradeSkillIcon(id)
+    if not id or id <= 0 then return nil end
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftIcon(id)
+    else
+        return GetTradeSkillIcon(id)
+    end
+end
+
+function Artisan.GetTradeSkillCooldown(id)
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        if C_Spell then
+            local spellID = GetCraftSpellID(id)
+            local info = C_Spell.GetSpellCooldown(spellID or 0)
+            if info then
+                local cd = info.startTime + info.duration - GetTime()
+                return cd > 0 and cd or nil
             end
         else
-            local prevParentIndex = ARTISAN_CUSTOM[tabName][craftIndex - 2].parent
-            ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
-            ARTISAN_CUSTOM[tabName][prevIndex].parent = prevParentIndex
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent then
-                    if ARTISAN_CUSTOM[tabName][i].parent == prevIndex then
-                        ARTISAN_CUSTOM[tabName][i].parent = craftIndex
-                    end
-                end
-            end
-
-            ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
-            ARTISAN_CUSTOM[tabName][prevParentIndex].childs = {}
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent then
-                    if ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                        table.insert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    elseif ARTISAN_CUSTOM[tabName][i].parent == prevParentIndex then
-                        table.insert(ARTISAN_CUSTOM[tabName][prevParentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    end
-                end
+            local link = string.gsub(GetCraftItemLink(id) or "", "^.*(enchant:%d+).*$", "%1")
+            local duration = Artisan.CraftsWithCooldown[link] and Artisan.CraftsWithCooldown[link][2]
+            local startTime =  ArtisanCustom.cd and ArtisanCustom.cd[link]
+            if startTime and duration then
+                local cd = startTime + duration - time()
+                return cd > 0 and cd or nil
             end
         end
+        return nil
     else
-        local headerAbove
-        if ARTISAN_CUSTOM[tabName][prevIndex].type ~= "header" then
-            headerAbove = ARTISAN_CUSTOM[tabName][prevIndex].parent
+        return GetTradeSkillCooldown(id)
+    end
+end
+
+function Artisan.GetTradeSkillNumReagents(id)
+    if not id or id <= 0 then return 0 end
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftNumReagents(id)
+    else
+        return GetTradeSkillNumReagents(id)
+    end
+end
+
+function Artisan.GetTradeSkillReagentInfo(id, i)
+    if not (id and id > 0 and i and i > 0) then return nil, nil, nil, nil end
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftReagentInfo(id, i)
+    else
+        return GetTradeSkillReagentInfo(id, i)
+    end
+end
+
+function Artisan.GetTradeSkillTools(id)
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftSpellFocus(id)
+    else
+        return GetTradeSkillTools(id)
+    end
+end
+
+function Artisan.GetTradeSkillNumMade(id)
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return 1, 1
+    else
+        return GetTradeSkillNumMade(id)
+    end
+end
+
+function Artisan.GetTradeSkillDescription(id)
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftDescription(id)
+    else
+        return nil
+    end
+end
+
+function Artisan.GetTradeSkillItemLink(id)
+    if not id then return end
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftItemLink(id)
+    else
+        return GetTradeSkillItemLink(id)
+    end
+end
+
+function Artisan.GetTradeSkillReagentItemLink(id, i)
+    if not id then return end
+    local isCraft = Artisan.IsCraft()
+    id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
+    if isCraft then
+        return GetCraftReagentItemLink(id, i)
+    else
+        return GetTradeSkillReagentItemLink(id, i)
+    end
+end
+
+function Artisan.CollapseTradeSkillSubClass(id)
+    local tab = Artisan.currentTab
+    if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
+    if id <= 0 then
+        for i = 1, table.getn(Artisan.Skills) do
+            if Artisan.Skills[i].skillType == "header" then
+                Artisan.CollapsedHeaders[tab][Artisan.Skills[i].skillName] = true
+            end
+        end
+        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+    else
+        if Artisan.Skills[id].skillType ~= "header" then return end
+        Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = true
+        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+    end
+end
+
+function Artisan.ExpandTradeSkillSubClass(id)
+    local tab = Artisan.currentTab
+    if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
+    if id <= 0 then
+        for i = 1, table.getn(Artisan.Skills) do
+            if Artisan.Skills[i].skillType == "header" then
+                Artisan.CollapsedHeaders[tab][Artisan.Skills[i].skillName] = false
+            end
+        end
+        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+    else
+        if Artisan.Skills[id].skillType ~= "header" then return end
+        Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = false
+        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
+    end
+end
+
+function Artisan.EnableControls(enable)
+    if enable then
+        ArtisanHaveReagents:Enable()
+        ArtisanFrameSearchBox:EnableMouse(true)
+        ArtisanFrameSearchBox:SetTextColor(HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+        ArtisanFrameSearchBoxClearButton:Enable()
+        ArtisanFrameSearchBoxClearButton:SetAlpha(0.6)
+        ArtisanFrameSearchBoxIcon:SetAlpha(0.6)
+        for i = 1, MAX_SKILLS do
+            _G["ArtisanFrameSkill"..i]:EnableMouse(true)
+            _G["ArtisanFrameSkill"..i]:SetAlpha(1)
+        end
+        ArtisanCollapseAllButton:EnableMouse(true)
+        ArtisanCollapseAllButton:SetAlpha(1)
+        ArtisanListScrollFrameScrollBar:EnableMouse(true)
+        ArtisanListScrollFrameScrollBarScrollUpButton:Enable()
+        ArtisanListScrollFrameScrollBarScrollDownButton:Enable()
+        ArtisanListScrollFrame:EnableMouseWheel(true)
+    else
+        ArtisanHaveReagents:Disable()
+        ArtisanFrameSearchBox:EnableMouse(false)
+        ArtisanFrameSearchBox:SetTextColor(GRAY_FONT_COLOR.r, GRAY_FONT_COLOR.g, GRAY_FONT_COLOR.b)
+        ArtisanFrameSearchBoxClearButton:Disable()
+        ArtisanFrameSearchBoxClearButton:SetAlpha(0.3)
+        ArtisanFrameSearchBoxIcon:SetAlpha(0.3)
+        for i = 1, MAX_SKILLS do
+            _G["ArtisanFrameSkill"..i]:EnableMouse(false)
+            _G["ArtisanFrameSkill"..i]:SetAlpha(0.5)
+        end
+        ArtisanCollapseAllButton:EnableMouse(false)
+        ArtisanCollapseAllButton:SetAlpha(0.5)
+        ArtisanListScrollFrameScrollBar:EnableMouse(false)
+        ArtisanListScrollFrameScrollBarScrollUpButton:Disable()
+        ArtisanListScrollFrameScrollBarScrollDownButton:Disable()
+        ArtisanListScrollFrame:EnableMouseWheel(false)
+    end
+end
+
+function Artisan.SkillIcon_OnEnter(self)
+    local _, trueSkill = Artisan.GetTradeSkillSelectionIndex()
+    if trueSkill ~= 0 then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if Artisan.IsCraft() then
+            GameTooltip:SetCraftSpell(trueSkill)
         else
-            headerAbove = prevIndex
+            GameTooltip:SetTradeSkillItem(trueSkill)
         end
-        local offset = craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
-        local temp = {}
-        for i = offset, craftIndex, -1 do
-            table.insert(temp, ARTISAN_CUSTOM[tabName][i])
-            table.remove(ARTISAN_CUSTOM[tabName], i)
+        CursorUpdate(self)
+    end
+end
+
+function Artisan.SkillIcon_OnClick(self, button)
+    Artisan.Item_OnClick(self, button, Artisan.GetTradeSkillItemLink(Artisan.selectedSkill))
+end
+
+function Artisan.Reagent_OnEnter(self)
+    local _, trueSkill = Artisan.GetTradeSkillSelectionIndex()
+    if trueSkill ~= 0 then
+        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+        if Artisan.IsCraft() then
+            GameTooltip:SetCraftItem(trueSkill, self:GetID())
+        else
+            GameTooltip:SetTradeSkillItem(trueSkill, self:GetID())
         end
-        for i = 1, table.getn(temp) do
-            table.insert(ARTISAN_CUSTOM[tabName], headerAbove, temp[i])
-        end
-        local newParent = 1
-        for i = 2, table.getn(ARTISAN_CUSTOM[tabName]) do
-            if ARTISAN_CUSTOM[tabName][i].parent then
-                ARTISAN_CUSTOM[tabName][i].parent = newParent
+        CursorUpdate(self)
+    end
+end
+
+function Artisan.Reagent_OnClick(self, button)
+    Artisan.Item_OnClick(self, button, Artisan.GetTradeSkillReagentItemLink(Artisan.selectedSkill, self:GetID()))
+end
+
+function Artisan.Item_OnClick(self, button, link)
+    if not link then return end
+    if button == "RightButton" then
+        if aux_frame and aux_frame:IsShown() then
+            local _, _, id = string.find(link, "item:(%d+)")
+            local ref
+            if not id then
+                _, _, id = string.find(link, "enchant:(%d+)")
+                ref = string.format("enchant:%d", tonumber(id or 0))
             else
-                newParent = i
+                ref = string.format("item:%d", tonumber(id or 0))
             end
+            SetItemRef(ref, "", "RightButton")
+        elseif CanSendAuctionQuery() and BrowseName then
+            BrowseName:SetText(link)
+            AuctionFrameBrowse_Search()
+            BrowseNoResultsText:SetText(BROWSE_NO_RESULTS)
+        end
+    elseif IsControlKeyDown() then
+        DressUpItemLink(link)
+    elseif IsShiftKeyDown() then
+        if WIM_EditBoxInFocus then
+            WIM_EditBoxInFocus:Insert(link)
+        elseif ChatFrameEditBox:IsShown() then
+            ChatFrameEditBox:Insert(link)
         end
     end
-    if currentHeaderName then
-        for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-            if v.name == currentHeaderName then
-                ArtisanEditor.currentHeader = k
-            end
-        end
-    end
-    Artisan_UpdateSkillList()
-    ArtisanEditorRight_Update()
 end
 
-function ArtisanRightButtonDown_OnClick()
-    local thisButton = _G["ArtisanEditorSkillRight"..this:GetID()]
-    local craftIndex = thisButton:GetID()
-	local nextIndex = craftIndex + 1
-    local tabName = ArtisanFrame.selectedTabName
-    local parentIndex = ARTISAN_CUSTOM[tabName][craftIndex].parent
-    local numSkills = table.getn(ARTISAN_CUSTOM[tabName])
-	local currentHeaderName
-	if ArtisanEditor.currentHeader then
-		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
-	end
-
-    if not (craftIndex and craftIndex < numSkills) then
-        return
+function Artisan.TradeSkillFilter_OnTextChanged(self)
+    if self:IsMouseEnabled() then
+        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
     end
-    if thisButton.type ~= "header" then
-        local temp = ARTISAN_CUSTOM[tabName][craftIndex]
-        ARTISAN_CUSTOM[tabName][craftIndex] = ARTISAN_CUSTOM[tabName][nextIndex]
-        ARTISAN_CUSTOM[tabName][nextIndex] = temp
+end
 
-        if ARTISAN_CUSTOM[tabName][craftIndex].type ~= "header" then
-            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                    table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                end
-            end
+function Artisan.OnMouseDown(self, button)
+    ArtisanFrameSearchBox:ClearFocus()
+    if ArtisanFrame:IsMovable() then
+        ArtisanFrame:StartMoving()
+    end
+end
+
+function Artisan.OnMouseUp(self, button)
+    if ArtisanFrame:IsMovable() then
+        ArtisanFrame:StopMovingOrSizing()
+        local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
+        ArtisanConfig.X = offsetX
+        ArtisanConfig.Y = offsetY
+    end
+end
+
+
+SLASH_ARTISAN1 = "/artisan"
+
+SlashCmdList["ARTISAN"] = function(cmd)
+    local function status(parameter)
+        local str = ""
+        if parameter then
+            str = "("..GREEN_FONT_COLOR_CODE.."ON|r)"
         else
-            ARTISAN_CUSTOM[tabName][craftIndex].parent = nil
-            ARTISAN_CUSTOM[tabName][nextIndex].parent = craftIndex
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent then
-                    if ARTISAN_CUSTOM[tabName][i].parent == nextIndex then
-                        ARTISAN_CUSTOM[tabName][i].parent = craftIndex
-                    end
-                end
-            end
-
-            ARTISAN_CUSTOM[tabName][parentIndex].childs = {}
-            ARTISAN_CUSTOM[tabName][craftIndex].childs = {}
-            for i = 1, table.getn(ARTISAN_CUSTOM[tabName]) do
-                if ARTISAN_CUSTOM[tabName][i].parent then
-                    if ARTISAN_CUSTOM[tabName][i].parent == parentIndex then
-                        table.insert(ARTISAN_CUSTOM[tabName][parentIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    elseif ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                        table.insert(ARTISAN_CUSTOM[tabName][craftIndex].childs, ARTISAN_CUSTOM[tabName][i].name)
-                    end
-                end
-            end
+            str = "("..GRAY_FONT_COLOR_CODE.."OFF|r)"
         end
+        return str
+    end
+    cmd = string.lower(Artisan.trim(cmd))
+    if cmd == "auto" then
+        if ArtisanConfig.auto then
+            ArtisanConfig.auto = false
+            ArtisanFrame:UnregisterEvent("REPLACE_ENCHANT")
+            ArtisanFrame:UnregisterEvent("TRADE_REPLACE_ENCHANT")
+        else
+            ArtisanConfig.auto = true
+            ArtisanFrame:RegisterEvent("REPLACE_ENCHANT")
+            ArtisanFrame:RegisterEvent("TRADE_REPLACE_ENCHANT")
+        end
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE_FONT_COLOR_CODE.."[Artisan]|r auto confirmation is now "..status(ArtisanConfig.auto))
+    elseif cmd == "icons" then
+        if ArtisanConfig.icons then
+            ArtisanConfig.icons = false
+        else
+            ArtisanConfig.icons = true
+        end
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE_FONT_COLOR_CODE.."[Artisan]|r skill icons is now "..status(ArtisanConfig.icons))
+    elseif cmd == "movable" then
+        HideUIPanel(ArtisanFrame)
+        if ArtisanConfig.movable then
+            ArtisanConfig.movable = false
+            UIPanelWindows["ArtisanFrame"] = { area = "left", pushable = 4 }
+            ArtisanFrame:ClearAllPoints()
+            ArtisanFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
+        else
+            ArtisanConfig.movable = true
+            UIPanelWindows["ArtisanFrame"] = nil
+            local point, relativeTo, relativePoint, offsetX, offsetY = ArtisanFrame:GetPoint()
+            ArtisanConfig.X = offsetX
+            ArtisanConfig.Y = offsetY
+        end
+        ArtisanFrame:SetMovable(ArtisanConfig.movable)
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE_FONT_COLOR_CODE.."[Artisan]|r movable window is now "..status(ArtisanConfig.movable))
     else
-        local headerBelow
-        if ARTISAN_CUSTOM[tabName][nextIndex].type ~= "header" then
-            headerBelow = craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) + 1
-        else
-            headerBelow = nextIndex
-        end
-
-        if not ARTISAN_CUSTOM[tabName][headerBelow] or ARTISAN_CUSTOM[tabName][headerBelow].type ~= "header" then
-            return
-        end
-
-        local pos = headerBelow + table.getn(ARTISAN_CUSTOM[tabName][headerBelow].childs) + 1
-        local x = 0
-        for i = craftIndex, craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-            table.insert(ARTISAN_CUSTOM[tabName], pos + x, ARTISAN_CUSTOM[tabName][i])
-            x = x + 1
-        end
-        x = 0
-        for i = craftIndex, craftIndex + table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-            table.remove(ARTISAN_CUSTOM[tabName], i - x)
-            x = x + 1
-        end
-        local newParent = 1
-        for i = 2, table.getn(ARTISAN_CUSTOM[tabName]) do
-            if ARTISAN_CUSTOM[tabName][i].parent then
-                ARTISAN_CUSTOM[tabName][i].parent = newParent
-            else
-                newParent = i
-            end
-        end
+        DEFAULT_CHAT_FRAME:AddMessage(BLUE_FONT_COLOR_CODE.."[Artisan]|r version "..GetAddOnMetadata("Artisan", "version"))
+        DEFAULT_CHAT_FRAME:AddMessage(NORMAL_FONT_COLOR_CODE.."/artisan auto|r - auto confirmation of enchant replacements "..status(ArtisanConfig.auto))
+        DEFAULT_CHAT_FRAME:AddMessage(NORMAL_FONT_COLOR_CODE.."/artisan icons|r - icons next to skill names "..status(ArtisanConfig.icons))
+        DEFAULT_CHAT_FRAME:AddMessage(NORMAL_FONT_COLOR_CODE.."/artisan movable|r - movable window "..status(ArtisanConfig.movable))
     end
-    if currentHeaderName then
-        for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-            if v.name == currentHeaderName then
-                ArtisanEditor.currentHeader = k
-            end
-        end
-    end
-    Artisan_UpdateSkillList()
-    ArtisanEditorRight_Update()
-end
-
-function ArtisanRightButtonDelete_OnClick()
-    local tabName = ArtisanFrame.selectedTabName
-    local button = _G["ArtisanEditorSkillRight"..this:GetID()]
-    local craftIndex = button:GetID()
-	local currentHeaderName
-	if ArtisanEditor.currentHeader then
-		currentHeaderName = ARTISAN_CUSTOM[tabName][ArtisanEditor.currentHeader].name
-	end
-    local name, type, num, sub, tp, lvl, id, parentIndex = button.name, button.type, button.num, button.sub, button.tp, button.lvl, button.id, button.parent
-    if button.type ~= "header" then
-        -- move this skill to the left table
-        table.insert(ARTISAN_UNCATEGORIZED[tabName], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = id})
-        -- remove this skill from parents header childs
-        for k, v in pairs(ARTISAN_CUSTOM[tabName][parentIndex].childs) do
-            if v == name then
-                table.remove(ARTISAN_CUSTOM[tabName][parentIndex].childs, k)
-            end
-        end
-        -- decrement parent index for skills below if they belong to other headers
-        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-            if v.parent and v.parent > parentIndex then
-                v.parent = v.parent - 1
-            end
-        end
-    else
-        -- if we delete header
-        local offset = table.getn(ARTISAN_CUSTOM[tabName][craftIndex].childs)
-        -- copy childs to left list
-        for _, v in pairs(ARTISAN_CUSTOM[tabName][craftIndex].childs) do
-            for _, v2 in pairs(ARTISAN_CUSTOM[tabName]) do
-                local tbl = {name = v2.name, type = v2.type, num = v2.num, sub = v2.sub, tp = v2.tp, lvl = v2.lvl, id = v2.id}
-                if v2.name == v and not listContains(ARTISAN_UNCATEGORIZED[tabName], nil, tbl) then
-                    table.insert(ARTISAN_UNCATEGORIZED[tabName], tbl)
-                    break
-                end
-            end
-        end
-        -- remove childs from right list
-        for i = table.getn(ARTISAN_CUSTOM[tabName]), 1, -1  do
-            if ARTISAN_CUSTOM[tabName][i].parent and ARTISAN_CUSTOM[tabName][i].parent == craftIndex then
-                table.remove(ARTISAN_CUSTOM[tabName], i)
-            end
-        end
-        -- decrement parent index for skills below by the number of childs + 1
-        for _, v in pairs(ARTISAN_CUSTOM[tabName]) do
-            if v.parent and v.parent > craftIndex then
-                v.parent = v.parent - offset - 1
-            end
-        end
-    end
-    table.remove(ARTISAN_CUSTOM[tabName], craftIndex)
-	if currentHeaderName then
-		ArtisanEditor.currentHeader = nil
-		for k, v in pairs(ARTISAN_CUSTOM[tabName]) do
-			if v.name == currentHeaderName then
-				ArtisanEditor.currentHeader = k
-			end
-		end
-	end
-    table.sort(ARTISAN_UNCATEGORIZED[tabName], function(a,b) return a.name < b.name end)
-    Artisan_UpdateSkillList()
-    ArtisanEditor_Search()
-    ArtisanEditorRight_Update()
-end
-
-local listLeft = {}
-local listRight = {}
-function ArtisanEditorScrollFrameLeft_OnLoad()
-    for i = 1, 25 do
-        if not listLeft[i] then
-            listLeft[i] = CreateFrame("Button", "ArtisanEditorSkillLeft"..i, ArtisanEditor, "ArtisanEditorLeftButtonTemplate")
-            listLeft[i]:SetPoint("TOPLEFT", ArtisanEditor, 10 , -30 - ((i - 1) * craftSkillHeight))
-        end
-    end
-end
-
-function ArtisanEditorScrollFrameRight_OnLoad()
-    local addhighlight = function(frame)
-        frame:SetScript("OnEnter", function()
-            this:GetParent():LockHighlight()
-        end)
-        frame:SetScript("OnLeave", function()
-            this:GetParent():UnlockHighlight()
-        end)
-    end
-    for i = 1, 25 do
-        if not listRight[i] then
-            listRight[i] = CreateFrame("Button", "ArtisanEditorSkillRight"..i, ArtisanEditor, "ArtisanEditorRightButtonTemplate")
-            listRight[i]:SetPoint("TOPRIGHT", ArtisanEditor, -30 , -30 - ((i - 1) * craftSkillHeight))
-            _G["ArtisanEditorSkillRight"..i.."Text"]:SetWidth(210)
-            
-            listRight[i].up = CreateFrame("Button", "ArtisanEditorRightUp"..i, ArtisanEditor, "ArtisanRightButtonUpTemplate")
-            listRight[i].up:SetPoint("CENTER", "ArtisanEditorSkillRight"..i, "RIGHT", -52, 0)
-            listRight[i].up:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
-            listRight[i].up:SetID(i)
-            listRight[i].up:SetParent(listRight[i])
-            addhighlight(listRight[i].up)
-
-            listRight[i].down = CreateFrame("Button", "ArtisanEditorRightDown"..i, ArtisanEditor, "ArtisanRightButtonDownTemplate")
-            listRight[i].down:SetPoint("RIGHT", "ArtisanEditorRightUp"..i, "RIGHT", 16, 0)
-            listRight[i].down:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
-            listRight[i].down:SetID(i)
-            listRight[i].down:SetParent(listRight[i])
-            addhighlight(listRight[i].down)
-
-            listRight[i].delete = CreateFrame("Button", "ArtisanEditorRightDelete"..i, ArtisanEditor, "ArtisanRightButtonDeleteTemplate")
-            listRight[i].delete:SetPoint("RIGHT", "ArtisanEditorRightDown"..i, "RIGHT", 22, 0)
-            listRight[i].delete:SetFrameLevel(_G["ArtisanEditorSkillRight"..i]:GetFrameLevel() + 1)
-            listRight[i].delete:SetID(i)
-            listRight[i].delete:SetParent(listRight[i])
-            addhighlight(listRight[i].delete)
-        end
-    end
-end
-
-local function sortByName(a, b)
-	return a.name < b.name
-end
-
-function ArtisanEditor_OnShow()
-	local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    if not ARTISAN_SKILLS[tab][sorting] then
-        return
-    end
-
-    ARTISAN_UNCATEGORIZED[tab] = ARTISAN_UNCATEGORIZED[tab] or {}
-    ARTISAN_CUSTOM[tab] = ARTISAN_CUSTOM[tab] or {}
-
-	wipe(ARTISAN_UNCATEGORIZED[tab])
-
-    for i = 1, C_GetNumCrafts() do
-        local name, type, num, exp, sub, tp, lvl = C_GetCraftInfo(i)
-        if sub and sub ~= "" then
-            name = name.."  "..format(PARENS_TEMPLATE, sub)
-        end
-        if type ~= "header" then
-            table.insert(ARTISAN_UNCATEGORIZED[tab], {name = name, type = type, num = num, sub = sub, tp = tp, lvl = lvl, id = i})
-            for k in pairs(ARTISAN_CUSTOM[tab]) do
-                if ARTISAN_CUSTOM[tab][k].name == name then
-                    table.remove(ARTISAN_UNCATEGORIZED[tab])
-                    break
-                end
-            end
-        end
-    end
-    table.sort(ARTISAN_UNCATEGORIZED[tab], sortByName)
-end
-
-function ArtisanEditor_Search()
-	wipe(editorSearchResults)
-
-    local query = strlower(ArtisanEditorSearchBox:GetText())
-    local tab = ArtisanFrame.selectedTabName
-
-    if not tab then
-        return
-    end
-
-    query = strtrim(query)
-    if query == "" then
-        ArtisanEditorLeft_Update()
-        return
-    end
-
-    local numSkills = table.getn(ARTISAN_UNCATEGORIZED[tab])
-
-    for i = 1, numSkills do
-        local skillName = ARTISAN_UNCATEGORIZED[tab][i].name
-
-        if skillName then
-            local words = strsplit(query, " ")
-            local match = true
-            for _, w in ipairs(words) do
-                if not strfind(strlower(skillName), strlower(w), 1, true) then
-                    match = false
-                    break
-                end
-            end
-            if match then
-                table.insert(editorSearchResults, i)
-            end
-        end
-    end
-	ArtisanEditorLeft_Update()
-end
-
-function ArtisanEditorLeft_Update()
-    local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameLeft) or 0
-    local tabName = ArtisanFrame.selectedTabName
-    local numCrafts = table.getn(ARTISAN_UNCATEGORIZED[tabName])
-    local buttonIndex = 1
-    local results = table.getn(editorSearchResults)
-    local craftsToUpdate = results == 0 and numCrafts or results
-    FauxScrollFrame_Update(ArtisanEditorScrollFrameLeft, craftsToUpdate, 25, craftSkillHeight)
-    local indent = ""
-    if ARTISAN_CONFIG.icons then
-        indent = "   "
-    end
-    for i = 1, 25 do
-        local craftIndex = 0
-        if ArtisanEditorSearchBox:GetText() ~= "" then
-            if results > 0 then
-                if editorSearchResults[i + craftOffset] then
-                    craftIndex = editorSearchResults[i + craftOffset]
-                end
-            else
-                craftIndex = -1
-            end
-        else
-            craftIndex = i + craftOffset
-        end
-        if craftIndex > 0 and craftIndex <= numCrafts then
-            local craftName = ARTISAN_UNCATEGORIZED[tabName][craftIndex].name
-            local craftType = ARTISAN_UNCATEGORIZED[tabName][craftIndex].type
-            local numAvailable = ARTISAN_UNCATEGORIZED[tabName][craftIndex].num
-            local craftSubSpellName = ARTISAN_UNCATEGORIZED[tabName][craftIndex].sub
-            local trainingPointCost = ARTISAN_UNCATEGORIZED[tabName][craftIndex].tp
-            local requiredLevel = ARTISAN_UNCATEGORIZED[tabName][craftIndex].lvl
-            local originalID = ARTISAN_UNCATEGORIZED[tabName][craftIndex].id
-            local craftButton = _G["ArtisanEditorSkillLeft"..buttonIndex]
-            local icon = _G["ArtisanEditorSkillLeft"..buttonIndex.."Icon"]
-            craftButton.name = craftName
-            craftButton.type = craftType
-            craftButton.num = numAvailable
-            craftButton.sub = craftSubSpellName
-            craftButton.tp = trainingPointCost
-            craftButton.lvl = requiredLevel
-            craftButton.id = originalID
-            local color = TypeColor[craftType]
-            if color then
-                craftButton:SetTextColor(color.r, color.g, color.b)
-            end
-            craftButton:SetID(craftIndex)
-            craftButton:SetText(indent..craftName)
-            craftButton:SetNormalTexture("")
-            if ARTISAN_CONFIG.icons then
-                if ArtisanFrame.craft then
-                    icon:SetTexture(GetCraftIcon(originalID))
-                else
-                    icon:SetTexture(GetTradeSkillIcon(originalID))
-                end
-            else
-                icon:SetTexture("")
-            end
-            _G["ArtisanEditorSkillLeft"..buttonIndex.."Highlight"]:SetTexture("")
-            craftButton:Show()
-        else
-            _G["ArtisanEditorSkillLeft"..i]:Hide()
-        end
-        buttonIndex = buttonIndex + 1
-    end
-    ArtisanFrame_Search()
-end
-
-function ArtisanEditorRight_Update()
-    local craftOffset = FauxScrollFrame_GetOffset(ArtisanEditorScrollFrameRight) or 0
-    local tabName = ArtisanFrame.selectedTabName
-    local numCrafts = table.getn(ARTISAN_CUSTOM[tabName])
-    local buttonIndex = 1
-    FauxScrollFrame_Update(ArtisanEditorScrollFrameRight, numCrafts, 25, craftSkillHeight)
-    local indent = ""
-    if ARTISAN_CONFIG.icons then
-        indent = "   "
-    end
-    for i = 1, 25 do
-        local craftIndex = 0
-        craftIndex = i + craftOffset
-        if craftIndex > 0 and craftIndex <= numCrafts then
-            local craftName = ARTISAN_CUSTOM[tabName][craftIndex].name
-            local craftType = ARTISAN_CUSTOM[tabName][craftIndex].type
-            local numAvailable = ARTISAN_CUSTOM[tabName][craftIndex].num
-            local craftSubSpellName = ARTISAN_CUSTOM[tabName][craftIndex].sub
-            local trainingPointCost = ARTISAN_CUSTOM[tabName][craftIndex].tp
-            local requiredLevel = ARTISAN_CUSTOM[tabName][craftIndex].lvl
-            local originalID = ARTISAN_CUSTOM[tabName][craftIndex].id
-            local craftButton = _G["ArtisanEditorSkillRight"..buttonIndex]
-            local icon = _G["ArtisanEditorSkillRight"..buttonIndex.."Icon"]
-            craftButton.name = craftName
-            craftButton.type = craftType
-            craftButton.num = numAvailable
-            craftButton.sub = craftSubSpellName
-            craftButton.tp = trainingPointCost
-            craftButton.lvl = requiredLevel
-            craftButton.id = originalID
-            craftButton.parent = ARTISAN_CUSTOM[tabName][craftIndex].parent
-            local color = TypeColor[craftType]
-            if color then
-                craftButton:SetTextColor(color.r, color.g, color.b)
-            end
-            craftButton:SetID(craftIndex)
-            if craftType ~= "header" then
-                craftButton:SetText(indent..craftName)
-                craftButton:SetNormalTexture("")
-                _G["ArtisanEditorSkillRight"..buttonIndex.."Highlight"]:SetTexture("")
-                if craftButton.parent and craftButton.parent == ArtisanEditor.currentHeader then
-                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Show()
-                else
-                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Hide()
-                end
-                if ARTISAN_CONFIG.icons then
-                    if ArtisanFrame.craft then
-                        icon:SetTexture(GetCraftIcon(originalID))
-                    else
-                        icon:SetTexture(GetTradeSkillIcon(originalID))
-                    end
-                else
-                    icon:SetTexture("")
-                end
-            else
-                craftButton:SetText(craftName)
-                icon:SetTexture("")
-                if ArtisanEditor.currentHeader == craftIndex then
-                    craftButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Show()
-                else
-                    craftButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                    _G["ArtisanEditorSkillRight"..buttonIndex.."Background"]:Hide()
-                end
-                _G["ArtisanEditorSkillRight"..i.."Highlight"]:SetTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
-            end
-            craftButton:Show()
-            _G["ArtisanEditorRightDelete"..i]:Show()
-            _G["ArtisanEditorRightUp"..i]:Show()
-            _G["ArtisanEditorRightDown"..i]:Show()
-        else
-            _G["ArtisanEditorSkillRight"..i]:Hide()
-            _G["ArtisanEditorRightDelete"..i]:Hide()
-            _G["ArtisanEditorRightUp"..i]:Hide()
-            _G["ArtisanEditorRightDown"..i]:Hide()
-        end
-        buttonIndex = buttonIndex + 1
-    end
-    if not ArtisanEditor.currentHeader then
-        ArtisanEditorRenameCategory:Disable()
-    else
-        ArtisanEditorRenameCategory:Enable()
-    end
-    ArtisanFrame_Search()
-end
-
-function ArtisanEditorAdd_OnClick()
-    StaticPopup_Show("ARTISAN_NEW_CATEGORY")
-end
-
-function ArtisanEditorRename_OnClick()
-    if ArtisanEditor.currentHeader then
-        StaticPopup_Show("ARTISAN_RENAME_CATEGORY")
-    end
-end
-
-StaticPopupDialogs["ARTISAN_NEW_CATEGORY"] = {
-    text = "Name the new category",
-    button1 = OKAY,
-    button2 = CANCEL,
-    hasEditBox = 1,
-    OnShow = function()
-        _G[this:GetName().."EditBox"]:SetFocus()
-        _G[this:GetName().."EditBox"]:SetText("")
-        _G[this:GetName() .. "EditBox"]:SetScript("OnEnterPressed", function()
-            StaticPopup1Button1:Click()
-        end)
-        _G[this:GetName() .. "EditBox"]:SetScript("OnEscapePressed", function()
-            _G[this:GetParent():GetName() .. "EditBox"]:SetText("")
-            StaticPopup1Button2:Click()
-        end)
-    end,
-    OnAccept = function()
-        ArtisanEditor_AddCategory(_G[this:GetParent():GetName() .. "EditBox"]:GetText())
-    end,
-    timeout = 0,
-    whileDead = 1,
-    hideOnEscape = 1,
-}
-
-StaticPopupDialogs["ARTISAN_RENAME_CATEGORY"] = {
-    text = "Rename into:",
-    button1 = OKAY,
-    button2 = CANCEL,
-    hasEditBox = 1,
-    OnShow = function()
-        _G[this:GetName().."EditBox"]:SetFocus()
-        _G[this:GetName().."EditBox"]:SetText("")
-        _G[this:GetName() .. "EditBox"]:SetScript("OnEnterPressed", function()
-            StaticPopup1Button1:Click()
-        end)
-        _G[this:GetName() .. "EditBox"]:SetScript("OnEscapePressed", function()
-            _G[this:GetParent():GetName() .. "EditBox"]:SetText("")
-            StaticPopup1Button2:Click()
-        end)
-    end,
-    OnAccept = function()
-        ArtisanEditor_RenameCategory(_G[this:GetParent():GetName() .. "EditBox"]:GetText())
-    end,
-    timeout = 0,
-    whileDead = 1,
-    hideOnEscape = 1,
-}
-
-function ArtisanEditor_AddCategory(categoryName)
-    categoryName = strtrim(categoryName)
-    local tabName = ArtisanFrame.selectedTabName
-    if categoryName == "" or not tabName then
-        return
-    end
-    table.insert(ARTISAN_CUSTOM[tabName], {name = categoryName, type = "header", exp = 1, childs = {}})
-    for k in pairs(ARTISAN_CUSTOM[tabName]) do
-        if ARTISAN_CUSTOM[tabName][k].name == categoryName then
-            ArtisanEditor.currentHeader = k
-        end
-    end
-    Artisan_UpdateSkillList()
-    ArtisanEditorRight_Update()
-end
-
-function ArtisanEditor_RenameCategory(into)
-    into = strtrim(into)
-    if into == "" then
-        return
-    end
-    ARTISAN_CUSTOM[ArtisanFrame.selectedTabName][ArtisanEditor.currentHeader].name = into
-    Artisan_UpdateSkillList()
-    ArtisanEditorRight_Update()
-end
-
-function ArtisanItem_OnEnter()
-    local tab = ArtisanFrame.selectedTabName
-    local sorting = ARTISAN_CONFIG.sorting[tab]
-    local skill = ArtisanFrame.selectedSkill
-
-    if not (tab and sorting and skill) then
-        return
-    end
-
-    GameTooltip:SetOwner(this, "ANCHOR_TOPLEFT")
-    if ArtisanFrame.craft then
-        local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
-        GameTooltip:SetCraftItem(originalID, this:GetID())
-    else
-        if sorting == "custom" then
-            local originalID = ARTISAN_SKILLS[tab][sorting][skill].id
-            GameTooltip:SetTradeSkillItem(originalID, this:GetID())
-        else
-            GameTooltip:SetTradeSkillItem(skill, this:GetID())
-        end
-    end
-    CursorUpdate()
 end

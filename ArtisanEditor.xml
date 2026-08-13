@@ -1,0 +1,377 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Script file="ArtisanEditor.lua"/>
+    <Button name="ArtisanEditorButtonLeftTemplate" virtual="true">
+        <Size x="293" y="16"/>
+        <!-- <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background">
+            <BackgroundInsets left="0" right="0" top="0" bottom="1"/>
+            <Color r="1" g="1" b="1" a="0.1"/>
+        </Backdrop> -->
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture name="$parentHighlight" file="Interface\Buttons\UI-Listbox-Highlight2" setAllPoints="true" hidden="true"/>
+            </Layer>
+            <Layer level="ARTWORK">
+                <Texture name="$parentIcon">
+                    <Size x="16" y="16"/>
+                    <Anchors>
+                        <Anchor point="LEFT">
+                            <Offset x="3" y="0"/>
+                        </Anchor>
+                    </Anchors>
+                    <TexCoords left="0.078125" right="0.90625" top="0.078125" bottom="0.90625"/>
+                </Texture>
+            </Layer>
+        </Layers>
+        <ButtonText name="$parentText" justifyH="LEFT">
+            <Size x="270" y="16"/>
+            <Anchors>
+                <Anchor point="LEFT" relativeTo="$parentIcon" relativePoint="RIGHT">
+                    <Offset x="2" y="1"/>
+                </Anchor>
+            </Anchors>
+        </ButtonText>
+        <NormalFont inherits="GameFontNormal"/>
+        <HighlightFont inherits="GameFontHighlight"/>
+        <DisabledFont inherits="GameFontDisable"/>
+        <Scripts>
+            <OnLoad>
+				this:SetFrameLevel(this:GetFrameLevel() + 1)
+                this.Highlight = _G[this:GetName().."Highlight"]
+                this.Icon = _G[this:GetName().."Icon"]
+                this.Text = _G[this:GetName().."Text"]
+            </OnLoad>
+            <OnClick>
+                Artisan.EditorButtonLeft_OnClick(this, arg1)
+            </OnClick>
+            <!-- <OnEnter>
+                this:SetBackdropColor(1, 1, 1, 0.2)
+            </OnEnter>
+            <OnLeave>
+                this:SetBackdropColor(1, 1, 1, 0.1)
+            </OnLeave> -->
+        </Scripts>
+    </Button>
+    <Button name="ArtisanEditorButtonRightTemplate" inherits="ArtisanEditorButtonLeftTemplate" virtual="true">
+        <Scripts>
+            <OnClick>
+                Artisan.EditorButtonRight_OnClick(this, arg1)
+            </OnClick>
+        </Scripts>
+    </Button>
+    <Frame name="ArtisanEditor" parent="UIParent" hidden="true" movable="true" toplevel="true" enableMouse="true">
+        <Size x="610" y="505"/>
+        <Anchors>
+            <Anchor point="TOP">
+                <Offset x="0" y="-104"/>
+            </Anchor>
+        </Anchors>
+        <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+            <BackgroundInsets left="5" right="5" top="5" bottom="5"/>
+            <TileSize val="32"/>
+            <EdgeSize val="28"/>
+            <Color r="0" g="0" b="0" a="1"/>
+        </Backdrop>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture name="ArtisanEditorHeader" file="Interface\DialogFrame\UI-DialogBox-Header">
+                    <Size x="300" y="64"/>
+                    <Anchors>
+                        <Anchor point="TOP">
+                            <Offset x="0" y="16"/>
+                        </Anchor>
+                    </Anchors>
+                </Texture>
+                <FontString inherits="GameFontNormal" text="Custom Categories">
+                    <Anchors>
+                        <Anchor point="TOP" relativeTo="ArtisanEditorHeader">
+                            <Offset x="0" y="-14"/>
+                        </Anchor>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="ArtisanEditorCloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="TOPRIGHT">
+                        <Offset x="-5" y="-5"/>
+                    </Anchor>
+                </Anchors>
+            </Button>
+            <ScrollFrame name="ArtisanEditorScrollFrameLeft" inherits="FauxScrollFrameTemplate">
+                <Size x="237" y="432"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT">
+                        <Offset x="25" y="-50"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        this.buttons = {}
+                        for i = 1, 27 do
+                            this.buttons[i] = CreateFrame("Button", "ArtisanEditorSkillLeft"..i, ArtisanEditor, "ArtisanEditorButtonLeftTemplate")
+                            this.buttons[i]:SetPoint("TOPLEFT", ArtisanEditor, 24, -50 - ((i - 1) * 16))
+                        end
+                        this.update = Artisan.EditorScrollFrameLeft_Update
+                    </OnLoad>
+                    <OnVerticalScroll>
+                        FauxScrollFrame_OnVerticalScroll(16, this.update)
+                    </OnVerticalScroll>
+                </Scripts>
+            </ScrollFrame>
+            <Button name="ArtisanEditorMoveRight">
+                <Size x="32" y="32"/>
+                <Anchors>
+                    <Anchor point="CENTER">
+                        <Offset x="0" y="20"/>
+                    </Anchor>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Down"/>
+                <DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+                <Scripts>
+                    <OnClick>
+                        Artisan.EditorMoveRight_OnClick(this, arg1)
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <Button name="ArtisanEditorMoveLeft">
+                <Size x="32" y="32"/>
+                <Anchors>
+                    <Anchor point="CENTER">
+                        <Offset x="0" y="-20"/>
+                    </Anchor>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
+                <DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+                <Scripts>
+                    <OnClick>
+                        Artisan.EditorMoveLeft_OnClick(this, arg1)
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <ScrollFrame name="ArtisanEditorScrollFrameRight" inherits="FauxScrollFrameTemplate">
+                <Size x="240" y="416"/>
+                <Anchors>
+                    <Anchor point="TOPRIGHT">
+                        <Offset x="-45" y="-66"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        this.buttons = {}
+                        for i = 1, 26 do
+                            this.buttons[i] = CreateFrame("Button", "ArtisanEditorSkillRight"..i, ArtisanEditor, "ArtisanEditorButtonRightTemplate")
+                            this.buttons[i]:SetPoint("TOPLEFT", ArtisanEditor, 326, -65 - ((i - 1) * 16))
+                        end
+                        this.update = Artisan.EditorScrollFrameRight_Update
+                    </OnLoad>
+                    <OnVerticalScroll>
+                        FauxScrollFrame_OnVerticalScroll(16, this.update)
+                    </OnVerticalScroll>
+                </Scripts>
+            </ScrollFrame>
+            <Frame name="ArtisanEditorScrollFrameLeftBorder">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="ArtisanEditorScrollFrameLeft">
+                        <Offset x="-5" y="5"/>
+                    </Anchor>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="ArtisanEditorScrollFrameLeft">
+                        <Offset x="28" y="-5"/>
+                    </Anchor>
+                </Anchors>
+                <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\Tooltips\UI-Tooltip-Border">
+                    <EdgeSize val="16"/>
+                    <Color r="0" g="0" b="0" a="0.3"/>
+                    <BackgroundInsets left="5" right="5" top="5" bottom="5"/>
+                </Backdrop>
+            </Frame>
+            <Frame name="ArtisanEditorScrollFrameRightBorder">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="ArtisanEditorScrollFrameRight">
+                        <Offset x="-5" y="5"/>
+                    </Anchor>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="ArtisanEditorScrollFrameRight">
+                        <Offset x="28" y="-5"/>
+                    </Anchor>
+                </Anchors>
+                <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\Tooltips\UI-Tooltip-Border">
+                    <EdgeSize val="16"/>
+                    <Color r="0" g="0" b="0" a="0.3"/>
+                    <BackgroundInsets left="5" right="5" top="5" bottom="5"/>
+                </Backdrop>
+            </Frame>
+            <EditBox name="ArtisanEditorSearchBox" inherits="InputBoxTemplate" autoFocus="false">
+                <Size x="190" y="32"/>
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT" relativeTo="ArtisanEditorScrollFrameLeftBorder" relativePoint="TOPLEFT">
+                        <Offset x="6" y="-5"/>
+                    </Anchor>
+                </Anchors>
+                <FontString name="$parentText" parentKey="text" inherits="ChatFontNormal"/>
+                <TextInsets left="15" right="8" top="0" bottom="0"/>
+                <Layers>
+                    <Layer level="BORDER">
+                        <Texture name="$parentIcon" file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Icon">
+                            <Size x="14" y="14"/>
+                            <Anchors>
+                                <Anchor point="LEFT">
+                                    <Offset x="2" y="-2"/>
+                                </Anchor>
+                            </Anchors>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Frames>
+                    <Button name="$parentClearButton">
+                        <Size x="14" y="14"/>
+                        <Anchors>
+                            <Anchor point="RIGHT">
+                                <Offset x="-3" y="0"/>
+                            </Anchor>
+                        </Anchors>
+                        <NormalTexture file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Clear"/>
+                        <HighlightTexture file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Clear" alphaMode="ADD"/>
+                        <PushedTexture file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Clear">
+                            <Size x="14" y="14"/>
+                            <Anchors>
+                                <Anchor point="CENTER">
+                                    <Offset x="0" y="-1"/>
+                                </Anchor>
+                            </Anchors>
+                        </PushedTexture>
+                        <Scripts>
+                            <OnClick>
+                                local box = this:GetParent()
+                                box:ClearFocus()
+                                box:SetText("")
+                            </OnClick>
+                            <OnEnter>
+                                this:SetAlpha(1)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                this:SetAlpha(0.6)
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+                </Frames>
+                <Scripts>
+                    <OnEnterPressed>
+                        this:ClearFocus()
+                    </OnEnterPressed>
+                    <OnEscapePressed>
+                        this:SetText("")
+                        this:ClearFocus()
+                    </OnEscapePressed>
+                    <OnTextChanged>
+                        Artisan.EditorSearchBox_OnTextChanged(this, arg1)
+                    </OnTextChanged>
+                    <OnEditFocusGained>
+                        this:HighlightText()
+                    </OnEditFocusGained>
+                    <OnEditFocusLost>
+                        this:HighlightText(0, 0)
+                    </OnEditFocusLost>
+                </Scripts>
+            </EditBox>
+            <Button name="ArtisanEditorCreateHeader" inherits="UIPanelButtonTemplate" text="CREATE">
+                <Size x="60" y="22"/>
+                <Anchors>
+                    <Anchor point="TOPRIGHT">
+                        <Offset x="-225" y="-35"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        StaticPopup_Show("ARTISAN_HEADER_CREATE")
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <Button name="ArtisanEditorDeleteHeader" inherits="UIPanelButtonTemplate" text="DELETE">
+                <Size x="60" y="22"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="ArtisanEditorCreateHeader" relativePoint="TOPRIGHT">
+                        <Offset x="2" y="0"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Artisan.DeleteHeader()
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <Button name="ArtisanEditorRenameHeader" inherits="UIPanelButtonTemplate" text="Rename">
+                <Size x="60" y="22"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="ArtisanEditorDeleteHeader" relativePoint="TOPRIGHT">
+                        <Offset x="2" y="0"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        StaticPopup_Show("ARTISAN_HEADER_RENAME")
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <Button name="AdrtisanEditorMoveUp">
+                <Size x="28" y="28"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="ArtisanEditorRenameHeader" relativePoint="TOPRIGHT">
+                        <Offset x="8" y="3"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Artisan.EditorMoveUp_OnClick(this, arg1)
+                    </OnClick>
+                </Scripts>
+                <NormalTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollUp-Up"/>
+                <PushedTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollUp-Down"/>
+                <DisabledTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollUp-Disabled"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+            <Button name="AdrtisanEditorMoveDown">
+                <Size x="28" y="28"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="AdrtisanEditorMoveUp" relativePoint="TOPRIGHT"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Artisan.EditorMoveDown_OnClick(this, arg1)
+                    </OnClick>
+                </Scripts>
+                <NormalTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Up"/>
+                <PushedTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Down"/>
+                <DisabledTexture file="Interface\ChatFrame\UI-ChatIcon-ScrollDown-Disabled"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+        </Frames>
+        <Scripts>
+            <OnLoad>
+                this:RegisterForDrag("LeftButton")
+                ArtisanEditorSearchBoxIcon:SetAlpha(0.6)
+                ArtisanEditorSearchBoxClearButton:SetAlpha(0.6)
+            </OnLoad>
+            <OnShow>
+                Artisan.UpdateEditor()
+                Artisan.EnableControls(false)
+            </OnShow>
+            <OnHide>
+                Artisan.UpdateFrame()
+                StaticPopup_Hide("ARTISAN_HEADER_RENAME")
+                StaticPopup_Hide("ARTISAN_HEADER_CREATE")
+                Artisan.EnableControls(true)
+            </OnHide>
+            <OnDragStart>
+                this:StartMoving()
+            </OnDragStart>
+            <OnDragStop>
+                this:StopMovingOrSizing()
+            </OnDragStop>
+        </Scripts>
+    </Frame>
+</Ui>
