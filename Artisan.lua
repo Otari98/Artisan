@@ -493,7 +493,7 @@ function Artisan.UpdateFrame()
 
     Artisan.EnableControls(not ArtisanEditor:IsShown())
 
-    if C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillListLink() or C_TradeSkillUI.GetCraftListLink() then
+    if C_TradeSkillUI and (C_TradeSkillUI.GetTradeSkillListLink() or C_TradeSkillUI.GetCraftListLink()) then
         ArtisanLinkButton:Show()
     else
         ArtisanLinkButton:Hide()
