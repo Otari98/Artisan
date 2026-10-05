@@ -343,6 +343,7 @@ function Artisan.EditorButtonLeft_OnClick(self, button)
     end
 
     Artisan.UpdateEditor()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.EditorButtonRight_OnClick(self, button)
@@ -393,6 +394,7 @@ function Artisan.EditorButtonRight_OnClick(self, button)
         end
     end
     Artisan.UpdateEditor()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.EditorMoveRight_OnClick(self, button)
@@ -424,6 +426,7 @@ function Artisan.EditorMoveRight_OnClick(self, button)
     Artisan.UpdateSkills()
     Artisan.UpdateEditor()
     Artisan.UpdateFrame()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.EditorMoveLeft_OnClick(self, button)
@@ -446,6 +449,7 @@ function Artisan.EditorMoveLeft_OnClick(self, button)
     Artisan.UpdateSkills()
     Artisan.UpdateEditor()
     Artisan.UpdateFrame()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.EditorMoveUp_OnClick(self, button)
@@ -467,6 +471,7 @@ function Artisan.EditorMoveUp_OnClick(self, button)
     Artisan.UpdateSkills()
     Artisan.UpdateEditor()
     Artisan.UpdateFrame()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.EditorMoveDown_OnClick(self, button)
@@ -488,6 +493,7 @@ function Artisan.EditorMoveDown_OnClick(self, button)
     Artisan.UpdateSkills()
     Artisan.UpdateEditor()
     Artisan.UpdateFrame()
+    ArtisanEditorSearchBox:ClearFocus()
 end
 
 function Artisan.CreateHeader(title)

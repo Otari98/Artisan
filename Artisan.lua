@@ -963,8 +963,6 @@ function Artisan.DetailScrollFrame_OnScrollRangeChanged(self, xrange, yrange)
 end
 
 function Artisan.SkillButton_OnClick(self, button)
-    -- ArtisanFrameSearchBox:ClearFocus()
-
     if IsShiftKeyDown() then
         local skillIndex = self:GetID()
         local skillType = Artisan.Skills[skillIndex].skillType
@@ -1023,6 +1021,7 @@ function Artisan.SkillButton_OnClick(self, button)
         Artisan.SetSelection(self:GetID())
         Artisan.UpdateFrame()
     end
+    ArtisanFrameSearchBox:ClearFocus()
 end
 
 function Artisan.IncrementButton_OnClick(self, button)

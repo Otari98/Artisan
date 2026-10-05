@@ -376,6 +376,7 @@
                 </Anchors>
                 <FontString name="$parentText" inherits="ChatFontNormal"/>
                 <TextInsets left="15" right="8" top="0" bottom="0"/>
+                <HitRectInsets left="-5" right="5" top="8" bottom="6"/>
                 <Layers>
                     <Layer level="BORDER">
                         <Texture name="$parentIcon" file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Icon">

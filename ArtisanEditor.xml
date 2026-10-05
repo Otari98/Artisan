@@ -213,6 +213,7 @@
                 </Anchors>
                 <FontString name="$parentText" parentKey="text" inherits="ChatFontNormal"/>
                 <TextInsets left="15" right="8" top="0" bottom="0"/>
+                <HitRectInsets left="-5" right="5" top="8" bottom="6"/>
                 <Layers>
                     <Layer level="BORDER">
                         <Texture name="$parentIcon" file="Interface\AddOns\Artisan\Textures\UI-SearchBox-Icon">
@@ -288,6 +289,7 @@
                 <Scripts>
                     <OnClick>
                         StaticPopup_Show("ARTISAN_HEADER_CREATE")
+                        ArtisanEditorSearchBox:ClearFocus()
                     </OnClick>
                 </Scripts>
             </Button>
@@ -301,6 +303,7 @@
                 <Scripts>
                     <OnClick>
                         Artisan.DeleteHeader()
+                        ArtisanEditorSearchBox:ClearFocus()
                     </OnClick>
                 </Scripts>
             </Button>
@@ -314,6 +317,7 @@
                 <Scripts>
                     <OnClick>
                         StaticPopup_Show("ARTISAN_HEADER_RENAME")
+                        ArtisanEditorSearchBox:ClearFocus()
                     </OnClick>
                 </Scripts>
             </Button>
@@ -372,6 +376,9 @@
             <OnDragStop>
                 this:StopMovingOrSizing()
             </OnDragStop>
+            <OnMouseUp>
+                ArtisanEditorSearchBox:ClearFocus()
+            </OnMouseUp>
         </Scripts>
     </Frame>
 </Ui>
