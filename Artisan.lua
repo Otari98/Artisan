@@ -88,14 +88,6 @@ Artisan.trim = function(s)
     return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
 end
 
-Artisan.strsplit = function(str, t)
-    local result = t and Artisan.wipe(t) or {}
-    for w in string.gfind(str, "%S+") do
-        table.insert(result, w)
-    end
-    return result
-end
-
 EnableAddOn("Blizzard_TradeSkillUI")
 EnableAddOn("Blizzard_CraftUI")
 LoadAddOn("Blizzard_TradeSkillUI")
@@ -703,14 +695,12 @@ function Artisan.SetSelection(id)
     ArtisanDetailScrollFrame:UpdateScrollChildRect()
 end
 
-local tokens = {}
 local function GetSearchResult(data, textFilter)
     if not data then return false end
     if not data.skillName or data.skillName == "" then return false end
     if data.skillType == "header" then return false end
-    tokens = Artisan.strsplit(string.lower(textFilter), tokens)
-    for i = 1, table.getn(tokens) do
-        if not string.find(string.lower(data.skillName), tokens[i], 1, true) then return false end
+    for word in string.gfind(string.lower(textFilter), "%S+") do
+        if not string.find(string.lower(data.skillName), word, 1, true) then return false end
     end
     return true
 end
