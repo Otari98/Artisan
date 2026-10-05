@@ -261,9 +261,12 @@
                         </Anchors>
                         <NormalTexture file="Interface\PaperDollInfoFrame\UI-Character-Skills-BarBorder"/>
                         <Scripts>
-                            <OnClick>
-                                ArtisanFrameSearchBox:ClearFocus()
-                            </OnClick>
+                            <OnMouseDown>
+                                Artisan.OnMouseDown(this, arg1)
+                            </OnMouseDown>
+                            <OnMouseUp>
+                                Artisan.OnMouseUp(this, arg1)
+                            </OnMouseUp>
                         </Scripts>
                     </Button>
                 </Frames>
