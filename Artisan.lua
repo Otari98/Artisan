@@ -1411,9 +1411,9 @@ function Artisan.Item_OnClick(self, button, link)
             end
             SetItemRef(ref, "", "RightButton")
         elseif CanSendAuctionQuery() and BrowseName then
-            BrowseName:SetText(link)
+            local name = string.gsub(link, ".*%[(.-)%].*", "%1", 1)
+            BrowseName:SetText(name)
             AuctionFrameBrowse_Search()
-            BrowseNoResultsText:SetText(BROWSE_NO_RESULTS)
         end
     elseif IsControlKeyDown() then
         DressUpItemLink(link)
