@@ -940,8 +940,7 @@
                 </Anchors>
                 <Scripts>
                     <OnClick>
-                        if not C_TradeSkillUI then return end
-                        local link = Artisan.IsTradeSkill() and C_TradeSkillUI.GetTradeSkillListLink() or C_TradeSkillUI.GetCraftListLink()
+                        local link = Artisan.GetTradeSkillListLink()
                         if not link then return end
                         if WIM_EditBoxInFocus then
                             WIM_EditBoxInFocus:Insert(link)

@@ -78,10 +78,10 @@ DoCraft = function(id)
     end
 end
 
-Artisan.wipe = function(tbl)
-    if type(tbl) ~= "table" then return end
-    for i = table.getn(tbl), 1, -1 do table.remove(tbl, i) end
-    for k in pairs(tbl) do tbl[k] = nil end
+Artisan.wipe = function(t)
+    if not (t and type(t) == "table") then return end
+    for k in pairs(t) do t[k] = nil end
+    table.setn(t, 0)
 end
 
 Artisan.trim = function(s)
@@ -296,6 +296,8 @@ function Artisan.UpdateFrame()
     local tab = Artisan.currentTab
     local numTradeSkills = Artisan.GetNumTradeSkills()
     local selectionIndex = Artisan.GetTradeSkillSelectionIndex()
+    local isLinked = Artisan.IsTradeSkillLinked()
+    local isCraft = Artisan.IsCraft()
 
     if numTradeSkills == 0 then
         ArtisanSkillName:Hide()
@@ -329,7 +331,7 @@ function Artisan.UpdateFrame()
         ArtisanRankFrame:Hide()
     end
 
-    if Artisan.IsCraft() then
+    if isCraft then
         ArtisanFrameBottomLeftTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft2")
         ArtisanFrameCreateButton:SetText(_G[GetCraftButtonToken()])
         ArtisanFrameCreateAllButton:Hide()
@@ -470,10 +472,16 @@ function Artisan.UpdateFrame()
     end
 
     for i = 1, table.getn(Artisan.Tabs) do
-        _G["ArtisanFrameTab"..i]:SetChecked(IsCurrentCast(Artisan.Tabs[i].spell, BOOKTYPE_SPELL))
+        local tabButton = Artisan.Tabs[i].frame
+        if isLinked then
+            tabButton:Hide()
+        else
+            tabButton:Show()
+            tabButton:SetChecked(IsCurrentCast(Artisan.Tabs[i].spell, BOOKTYPE_SPELL))
+        end
     end
 
-    local sorting = ArtisanConfig.sorting[tab] or "DEFAULT"
+    local sorting = isLinked and "DEFAULT" or ArtisanConfig.sorting[tab] or "DEFAULT"
     ArtisanSortDefault:SetChecked(sorting == "DEFAULT")
     ArtisanSortCustom:SetChecked(sorting == "CUSTOM")
     ArtisanHaveReagents:SetChecked(ArtisanConfig.reagents[tab])
@@ -485,16 +493,44 @@ function Artisan.UpdateFrame()
 
     Artisan.EnableControls(not ArtisanEditor:IsShown())
 
-    if C_TradeSkillUI and (C_TradeSkillUI.GetTradeSkillListLink() or C_TradeSkillUI.GetCraftListLink()) then
-        ArtisanLinkButton:Show()
-    else
+    if isLinked then
+        if ArtisanEditor:IsShown() then
+            ArtisanEditor:Hide()
+        end
         ArtisanLinkButton:Hide()
+        ArtisanFrameCreateButton:Hide()
+        ArtisanFrameCreateAllButton:Hide()
+        ArtisanSortingLabel:Hide()
+        ArtisanSortDefault:Hide()
+        ArtisanSortCustom:Hide()
+        ArtisanFrameInputBox:Hide()
+        ArtisanFrameDecrementButton:Hide()
+        ArtisanFrameIncrementButton:Hide()
+        ArtisanFrameBottomLeftTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomLeft3")
+        ArtisanFrameBottomRightTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomRight2")
+    else
+        if Artisan.GetTradeSkillListLink() then
+            ArtisanLinkButton:Show()
+        else
+            ArtisanLinkButton:Hide()
+        end
+        ArtisanFrameCreateButton:Show()
+        ArtisanSortingLabel:Show()
+        ArtisanSortDefault:Show()
+        ArtisanSortCustom:Show()
+        if not isCraft then
+            ArtisanFrameCreateAllButton:Show()
+            ArtisanFrameInputBox:Show()
+            ArtisanFrameDecrementButton:Show()
+            ArtisanFrameIncrementButton:Show()
+        end
+        ArtisanFrameBottomRightTexture:SetTexture("Interface\\AddOns\\Artisan\\Textures\\BottomRight")
     end
 end
 
 function Artisan.UpdateTrainingPoints()
     local hasPetUI, canGainXP = HasPetUI()
-    if hasPetUI and canGainXP and Artisan.currentTab == "Beast Training" then
+    if hasPetUI and canGainXP and Artisan.currentTab == "Beast Training" and not Artisan.IsTradeSkillLinked() then
         local totalPoints, spent = GetPetTrainingPoints()
         ArtisanFramePointsLabel:Show()
         ArtisanFramePointsText:Show()
@@ -707,10 +743,12 @@ end
 
 function Artisan.UpdateSkills()
     local tab = Artisan.currentTab
-    local sorting = ArtisanConfig.sorting[tab]
-    if not (tab and sorting) then return end
+    if not tab then return end
+
+    local sorting = Artisan.IsTradeSkillLinked() and "DEFAULT" or ArtisanConfig.sorting[tab]
+    if not sorting then return end
+
     if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
-    if not ArtisanCustom[tab] then ArtisanCustom[tab] = {} end
 
     local onlyShowMakeable = ArtisanConfig.reagents[tab]
     local textFilter = ArtisanFrameSearchBox:GetText()
@@ -800,6 +838,7 @@ function Artisan.UpdateSkills()
     elseif sorting == "CUSTOM" then
         Artisan.wipe(Artisan.CustomCategories)
         -- copy custom headers from saved variable
+        if not ArtisanCustom[tab] then ArtisanCustom[tab] = {} end
         for i = 1, table.getn(ArtisanCustom[tab]) do
             local data = ArtisanCustom[tab][i]
             if data.isHeader then
@@ -924,23 +963,20 @@ function Artisan.UpdateSkills()
     end
 
     -- update selection index
+    local skill = 0
     if selectionName then
         for i = 1, table.getn(Artisan.Skills) do
             local data = Artisan.Skills[i]
             if data.skillName == selectionName then
                 if selectionSubText and data.subText then
-                    if selectionSubText == data.subText then
-                        Artisan.SelectTradeSkill(i)
-                        return
-                    end
+                    if selectionSubText == data.subText then skill = i; break end
                 else
-                    Artisan.SelectTradeSkill(i)
-                    return
+                    skill = i; break
                 end
             end
         end
     end
-    Artisan.SelectTradeSkill(0)
+    Artisan.SelectTradeSkill(skill)
 end
 
 function Artisan.DetailScrollFrame_OnScrollRangeChanged(self, xrange, yrange)
@@ -1105,6 +1141,24 @@ function Artisan.ToggleEditorButton_OnClick(self, button)
     end
 end
 
+function Artisan.GetTradeSkillListLink()
+    if not GetTradeSkillListLink then return nil end
+    if Artisan.IsTradeSkill() then
+        return GetTradeSkillListLink()
+    else
+        return GetCraftListLink()
+    end
+end
+
+function Artisan.IsTradeSkillLinked()
+    if not IsTradeSkillLinked then return nil, nil end
+    if Artisan.IsTradeSkill() then
+        return IsTradeSkillLinked()
+    else
+        return IsCraftLinked()
+    end
+end
+
 function Artisan.IsCraft()
     local tab = Artisan.currentTab
     return tab and (tab == "Enchanting" or tab == "Beast Training" or tab == "Disguise")
@@ -1146,10 +1200,10 @@ function Artisan.GetFirstTradeSkill()
 end
 
 function Artisan.SelectTradeSkill(id)
+    id = tonumber(id or nil); if not id then return end
     id = math.max(0, id)
-    local isCraft = Artisan.IsCraft()
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         SelectCraft(id)
     else
         SelectTradeSkill(id)
@@ -1157,8 +1211,7 @@ function Artisan.SelectTradeSkill(id)
 end
 
 function Artisan.GetTradeSkillSelectionIndex()
-    local isCraft = Artisan.IsCraft()
-    local trueIndex = isCraft and GetCraftSelectionIndex() or GetTradeSkillSelectionIndex()
+    local trueIndex = Artisan.IsTradeSkill() and GetTradeSkillSelectionIndex() or GetCraftSelectionIndex()
     local selectionIndex = trueIndex
     for index, data in pairs(Artisan.Skills) do
         if data.id == trueIndex then
@@ -1170,7 +1223,7 @@ function Artisan.GetTradeSkillSelectionIndex()
 end
 
 function Artisan.GetTradeSkillInfo(id)
-    if not id or id <= 0 then return nil, nil, 0, nil, nil, 0, 0 end
+    id = tonumber(id or 0); if not (id and id > 0) then return nil, nil, 0, nil, nil, 0, 0 end
     local skillName, skillType, isExpanded, subText
     local numAvailable, trainingPointCost, requiredLevel = 0, 0, 0
     local data = Artisan.Skills[id]
@@ -1181,10 +1234,9 @@ function Artisan.GetTradeSkillInfo(id)
 end
 
 function Artisan.GetTradeSkillIcon(id)
-    if not id or id <= 0 then return nil end
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return nil end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftIcon(id)
     else
         return GetTradeSkillIcon(id)
@@ -1192,9 +1244,9 @@ function Artisan.GetTradeSkillIcon(id)
 end
 
 function Artisan.GetTradeSkillCooldown(id)
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return nil end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         if C_Spell then
             local spellID = GetCraftSpellID(id)
             local info = C_Spell.GetSpellCooldown(spellID or 0)
@@ -1218,10 +1270,9 @@ function Artisan.GetTradeSkillCooldown(id)
 end
 
 function Artisan.GetTradeSkillNumReagents(id)
-    if not id or id <= 0 then return 0 end
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return 0 end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftNumReagents(id)
     else
         return GetTradeSkillNumReagents(id)
@@ -1229,10 +1280,10 @@ function Artisan.GetTradeSkillNumReagents(id)
 end
 
 function Artisan.GetTradeSkillReagentInfo(id, i)
+    id = tonumber(id or 0); i = tonumber(i or 0)
     if not (id and id > 0 and i and i > 0) then return nil, nil, nil, nil end
-    local isCraft = Artisan.IsCraft()
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftReagentInfo(id, i)
     else
         return GetTradeSkillReagentInfo(id, i)
@@ -1240,9 +1291,9 @@ function Artisan.GetTradeSkillReagentInfo(id, i)
 end
 
 function Artisan.GetTradeSkillTools(id)
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return "" end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftSpellFocus(id)
     else
         return GetTradeSkillTools(id)
@@ -1250,9 +1301,9 @@ function Artisan.GetTradeSkillTools(id)
 end
 
 function Artisan.GetTradeSkillNumMade(id)
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return 1, 1 end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return 1, 1
     else
         return GetTradeSkillNumMade(id)
@@ -1260,20 +1311,19 @@ function Artisan.GetTradeSkillNumMade(id)
 end
 
 function Artisan.GetTradeSkillDescription(id)
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return nil end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftDescription(id)
     else
-        return nil
+        return GetTradeSkillDescription and GetTradeSkillDescription(id) or nil
     end
 end
 
 function Artisan.GetTradeSkillItemLink(id)
-    if not id then return end
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return "" end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftItemLink(id)
     else
         return GetTradeSkillItemLink(id)
@@ -1281,10 +1331,9 @@ function Artisan.GetTradeSkillItemLink(id)
 end
 
 function Artisan.GetTradeSkillReagentItemLink(id, i)
-    if not id then return end
-    local isCraft = Artisan.IsCraft()
+    id = tonumber(id or 0); if not (id and id > 0) then return nil end
     id = Artisan.Skills[id] and Artisan.Skills[id].id or 0
-    if isCraft then
+    if Artisan.IsCraft() then
         return GetCraftReagentItemLink(id, i)
     else
         return GetTradeSkillReagentItemLink(id, i)
@@ -1293,36 +1342,38 @@ end
 
 function Artisan.CollapseTradeSkillSubClass(id)
     local tab = Artisan.currentTab
+    if not tab then return end
     if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
-    if id <= 0 then
+    if id > 0 then
+        if Artisan.Skills[id] and Artisan.Skills[id].skillType == "header" then
+            Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = true
+        end
+    else
         for i = 1, table.getn(Artisan.Skills) do
             if Artisan.Skills[i].skillType == "header" then
                 Artisan.CollapsedHeaders[tab][Artisan.Skills[i].skillName] = true
             end
         end
-        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
-    else
-        if Artisan.Skills[id].skillType ~= "header" then return end
-        Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = true
-        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
     end
+    Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
 end
 
 function Artisan.ExpandTradeSkillSubClass(id)
     local tab = Artisan.currentTab
+    if not tab then return end
     if not Artisan.CollapsedHeaders[tab] then Artisan.CollapsedHeaders[tab] = {} end
-    if id <= 0 then
+    if id > 0 then
+        if Artisan.Skills[id] and Artisan.Skills[id].skillType == "header" then
+            Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = false
+        end
+    else
         for i = 1, table.getn(Artisan.Skills) do
             if Artisan.Skills[i].skillType == "header" then
                 Artisan.CollapsedHeaders[tab][Artisan.Skills[i].skillName] = false
             end
         end
-        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
-    else
-        if Artisan.Skills[id].skillType ~= "header" then return end
-        Artisan.CollapsedHeaders[tab][Artisan.Skills[id].skillName] = false
-        Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
     end
+    Artisan.OnEvent(ArtisanFrame, "TRADE_SKILL_FILTER_UPDATE")
 end
 
 function Artisan.EnableControls(enable)
